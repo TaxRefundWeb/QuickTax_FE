@@ -1,9 +1,11 @@
 import { useState } from "react";
 import styles from "./Login.module.css";
+import LoginModal from "../../components/modal/LoginModal";
 
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +43,12 @@ export default function Login() {
             />
           </div>
 
-          <button className={styles.button} type="submit">
+          {/* ⬇️ submit → modal open */}
+          <button
+            className={styles.button}
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+          >
             로그인하기
           </button>
 
@@ -55,6 +62,19 @@ export default function Login() {
           </div>
         </form>
       </div>
+
+      {/* 확인용 로그인 모달 */}
+      <LoginModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="고객 선택"
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <button>고객 A</button>
+          <button>고객 B</button>
+          <button>고객 C</button>
+        </div>
+      </LoginModal>
     </div>
   );
 }

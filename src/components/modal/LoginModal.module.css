@@ -1,43 +1,194 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0,0,0,0.35);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
   z-index: 9999;
 }
 
+/* ✅ 모달 전체 높이를 고정해서, 내부 박스들이 항상 일정하게 보이게 */
 .modal {
-  width: min(520px, calc(100vw - 32px));
+  position: relative; 
+  width: 764px;
+  height: 688px;
   background: #fff;
   border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 70px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px;
-  border-bottom: 1px solid #eee;
+  position: absolute;
+  top: 72px; 
+  left: 50%;
+  transform: translateX(-50%);
+  width: 632px;
+  padding: 0;         /* 테두리 없이 깔끔하게 */
 }
 
-.title {
+.headerInner {
+  width: 632px;
+  padding: 0;         /* 또는 4px 0 정도 */
+  background: transparent; /* 네모지만 티 안 나게 */
+  border: none;       /* 테두리 없음 */
+}
+
+.headTexts {
+  display: grid;
+  gap: 8px;
+}
+
+.headTitle {
   margin: 0;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.headDesc {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.accent {
+  color: #0a5bff;
 }
 
 .closeBtn {
+  width: 34px;
+  height: 34px;
   border: none;
   background: transparent;
-  font-size: 26px;
-  line-height: 1;
+  font-size: 22px;
   cursor: pointer;
+  color: #6b7280;
+  border-radius: 10px;
+}
+.closeBtn:hover {
+  background: #f3f4f6;
+  color: #111827;
 }
 
-.body {
-  padding: 18px;
+/* ✅ 검색 박스: 항상 같은 위치/크기 */
+.searchRow {
+  position: absolute;
+  top: 180px;                  /* 모달 상단 기준 */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 632px;
+
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  z-index: 2;
+}
+
+.searchBox {
+  width: 632px;
+  height: 42.25px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  color: #111827;
+}
+.searchInput::placeholder {
+  color: #9ca3af;
+}
+
+.searchIcon {
+  font-size: 14px;
+  color: #9ca3af;
+}
+
+.tableWrap {
+  position: absolute;
+  bottom: 86px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  width: 632px;
+  height: 360px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+}
+
+
+.tableHeader {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 56px 1.2fr 1fr 1.3fr;
+
+  background: #ffffff;
+  padding: 12px 10px;
+
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+
+
+.tableBody {
+  flex: 1 1 auto;
+  min-height: 0;     /* 스크롤 핵심 */
+  overflow-y: auto;  /* 여기만 스크롤 */
+  overflow-x: hidden;
+  background: #fff;
+}
+
+.empty {
+  padding: 24px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.footer {
+  margin-top: auto;
+  padding: 14px 66px 33px 28px;
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.addBtn {
+  width: 144px;
+  height: 41px;
+
+  border-radius: 10px;
+  border: 1px solid #c7d2fe;
+  background: #ffffff;
+
+  font-size: 12px;
+  font-weight: 700;
+  color: #64A5FF;
+
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.addBtn:hover {
+  background: #f8fbff;
 }

@@ -11,7 +11,6 @@
 /* 파란 반원 */
 .blueArc {
   position: absolute;
-  /* 하단 중앙에 고정하기 위한 설정 */
   left: 50%;
   bottom: 0;
   transform: translateX(-50%); 

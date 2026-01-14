@@ -1,14 +1,14 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import LoginModal from "../../components/modal/LoginModal";
-// import { useNavigate } from "react-router-dom"; // 나중에 step1 연결할 때
 
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,6 +18,11 @@ export default function Login() {
 
     // 🔹 지금은 로그인 성공 가정 → 모달 오픈
     setIsModalOpen(true);
+  };
+
+  const handleAddCustomer = () => {
+    setIsModalOpen(false);
+    navigate("/step1/add-customer");
   };
 
   return (
@@ -52,10 +57,7 @@ export default function Login() {
           </div>
 
           {/* 로그인 버튼 */}
-          <button
-            className={styles.button}
-            type="submit"
-          >
+          <button className={styles.button} type="submit">
             로그인하기
           </button>
 
@@ -74,12 +76,7 @@ export default function Login() {
       <LoginModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onAddCustomer={() => {
-          setIsModalOpen(false);
-
-          // navigate("/step1/add-customer");
-          console.log("신규 고객 추가 클릭");
-        }}
+        onAddCustomer={handleAddCustomer}
       />
     </div>
   );

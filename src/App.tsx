@@ -1,5 +1,5 @@
-import AddCustomerPage from "./pages/Step1/AddCustomerPage";
+import Login from "./pages/login/Login";
 
 export default function App() {
-  return <AddCustomerPage />;
+  return <Login />;
 }

@@ -1,22 +1,13 @@
-type TopBarProps = {
-  userName?: string;
-  onLogout?: () => void;
-};
-
-export default function TopBar({ userName = "OOO", onLogout }: TopBarProps) {
+export default function TopBar() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-white border-b">
-      <div className="h-full flex items-center justify-end gap-3 px-6">
-        <div className="w-8 h-8 rounded-full bg-gray-300" />
-        <span className="text-sm text-gray-800">{userName}님</span>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="text-sm px-4 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50"
-        >
+    <div className="h-14 w-full bg-white">
+      <div className="flex h-full w-full items-center justify-end gap-4">
+        <div className="h-8 w-8 rounded-full bg-gray-300" />
+        <div className="text-sm text-gray-700">ㅇㅇㅇ님</div>
+        <button className="h-8 rounded-full border border-gray-200 px-4 text-sm">
           로그아웃
         </button>
       </div>
-    </header>
+    </div>
   );
 }

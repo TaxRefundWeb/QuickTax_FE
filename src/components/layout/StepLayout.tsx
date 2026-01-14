@@ -1,14 +1,11 @@
+import TopBar from "../layout/TopBar";
 import StepperHeader from "../stepper/StepperHeader";
 
 const STEPS = ["기본정보입력", "파일 불러오기", "계산", "완료 및 출력"];
 
-// TopBar 높이: h-14 (56px)
-// StepperHeader 높이(대략): py-6 + 점/텍스트 포함해서 약 88px 전후
-// 그래서 컨텐츠는 대충 56 + 88 = 144px 정도 아래로 내려주면 안전함.
-// (필요하면 pt 값을 조금씩 조절하면 됨)
-const TOPBAR_HEIGHT = 56;
-const STEPPER_HEIGHT = 88;
-const HEADER_TOTAL = TOPBAR_HEIGHT + STEPPER_HEIGHT; // 144
+const TOPBAR_HEIGHT = 56; // h-14
+const STEPPER_HEIGHT = 88; // StepperHeader 높이(대략)
+const HEADER_TOTAL = TOPBAR_HEIGHT + STEPPER_HEIGHT;
 
 export default function StepLayout({
   activeStep,
@@ -18,18 +15,25 @@ export default function StepLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full">
-      {/* StepperHeader는 fixed로 화면 기준 풀폭 고정 */}
-      <StepperHeader steps={STEPS} activeStep={activeStep} />
+    <div className="h-screen w-full bg-white">
+      <div className="fixed top-0 left-0 right-0 z-50 bg-white">
+        <div className="w-full border-b">
+          <div className="mx-auto w-full max-w-[1152px] px-6">
+            <TopBar />
+          </div>
+        </div>
 
-      {/* 헤더(TopBar + StepperHeader) 아래로 컨텐츠 밀기 */}
-      <main style={{ paddingTop: HEADER_TOTAL }} className="w-full px-10 py-8">
-        {children}
+        <div className="w-full">
+          <div className="mx-auto w-full max-w-[1152px] px-6">
+            <StepperHeader steps={STEPS} activeStep={activeStep} />
+          </div>
+        </div>
+      </div>
 
-        {/* 
-          만약 콘텐츠를 가운데에 두고 폭 제한하고 싶으면 이렇게:
-          <div className="max-w-5xl mx-auto">{children}</div>
-        */}
+      <main style={{ paddingTop: HEADER_TOTAL }} className="h-screen w-full bg-white">
+        <div className="mx-auto w-full max-w-[920px] px-6 pt-24">
+          {children}
+        </div>
       </main>
     </div>
   );

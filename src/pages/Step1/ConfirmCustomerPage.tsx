@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 type CustomerForm = {
   name: string;
@@ -10,7 +10,8 @@ type CustomerForm = {
   accountNumber: string;
 };
 
-export default function AddCustomerPage() {
+export default function ConfirmCustomerPage() {
+  const location = useLocation();
   const navigate = useNavigate();
 
   const [form, setForm] = useState<CustomerForm>({
@@ -22,6 +23,24 @@ export default function AddCustomerPage() {
     accountNumber: "",
   });
 
+  const [baselineForm, setBaselineForm] = useState<CustomerForm | null>(null);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  useEffect(() => {
+    const state = location.state as { form?: CustomerForm } | null;
+
+    if (!state?.form) {
+      navigate("/step1/add", { replace: true });
+      return;
+    }
+
+    if (baselineForm === null) {
+      setForm(state.form);
+      setBaselineForm(state.form);
+    }
+  }, [location.state, navigate, baselineForm]);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -29,19 +48,39 @@ export default function AddCustomerPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = () => {
-    // TODO: 여기서 간단 검증도 가능
-    navigate("/step1/confirm", { state: { form } });
+  const handleLeftButton = () => {
+    if (!isEditMode) {
+      setIsEditMode(true); // 정보 수정
+      return;
+    }
+
+    // 취소
+    if (baselineForm) setForm(baselineForm);
+    setIsEditMode(false);
+  };
+
+  const handleRightButton = () => {
+    if (!isEditMode) {
+      // 입력 완료 (최종 제출 자리)
+      console.log("최종 제출:", form);
+      return;
+    }
+
+    // 수정 완료
+    setBaselineForm(form);
+    setIsEditMode(false);
   };
 
   const inputBase =
-    "h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm outline-none focus:border-gray-300";
+    "h-10 w-full rounded-md border border-gray-200 px-3 text-sm outline-none focus:border-gray-300";
+  const readOnlyStyle = "bg-gray-50 text-gray-700";
+  const editableStyle = "bg-white";
 
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
         <h1 className="mb-20 text-[24px] font-bold text-gray-900">
-          신규 고객의 기본정보를 입력해주세요
+          입력된 정보를 확인해 주세요
         </h1>
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
@@ -51,10 +90,12 @@ export default function AddCustomerPage() {
               <label className="mb-2 block text-base text-gray-600">이름</label>
               <input
                 name="name"
-                type="text"
                 value={form.name}
                 onChange={handleChange}
-                className={inputBase}
+                readOnly={!isEditMode}
+                className={`${inputBase} ${
+                  isEditMode ? editableStyle : readOnlyStyle
+                }`}
               />
             </div>
 
@@ -64,10 +105,12 @@ export default function AddCustomerPage() {
               </label>
               <input
                 name="rrn"
-                type="text"
                 value={form.rrn}
                 onChange={handleChange}
-                className={inputBase}
+                readOnly={!isEditMode}
+                className={`${inputBase} ${
+                  isEditMode ? editableStyle : readOnlyStyle
+                }`}
               />
             </div>
           </div>
@@ -77,10 +120,12 @@ export default function AddCustomerPage() {
             <label className="mb-2 block text-base text-gray-600">전화번호</label>
             <input
               name="phone"
-              type="text"
               value={form.phone}
               onChange={handleChange}
-              className={inputBase}
+              readOnly={!isEditMode}
+              className={`${inputBase} ${
+                isEditMode ? editableStyle : readOnlyStyle
+              }`}
             />
           </div>
 
@@ -89,10 +134,12 @@ export default function AddCustomerPage() {
             <label className="mb-2 block text-base text-gray-600">주소</label>
             <input
               name="address"
-              type="text"
               value={form.address}
               onChange={handleChange}
-              className={inputBase}
+              readOnly={!isEditMode}
+              className={`${inputBase} ${
+                isEditMode ? editableStyle : readOnlyStyle
+              }`}
             />
           </div>
 
@@ -104,7 +151,10 @@ export default function AddCustomerPage() {
                 name="bank"
                 value={form.bank}
                 onChange={handleChange}
-                className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-gray-300"
+                disabled={!isEditMode}
+                className={`h-10 w-full rounded-md border border-gray-200 px-3 text-sm text-gray-700 outline-none focus:border-gray-300 ${
+                  isEditMode ? "bg-white" : "bg-gray-50"
+                }`}
               >
                 <option value="" disabled>
                   선택
@@ -124,23 +174,33 @@ export default function AddCustomerPage() {
               <label className="mb-2 block text-base text-gray-600">계좌번호</label>
               <input
                 name="accountNumber"
-                type="text"
                 value={form.accountNumber}
                 onChange={handleChange}
+                readOnly={!isEditMode}
                 placeholder="'-' 제외 입력"
-                className={inputBase}
+                className={`${inputBase} ${
+                  isEditMode ? editableStyle : readOnlyStyle
+                }`}
               />
             </div>
           </div>
 
-          {/* 버튼 */}
-          <div className="pt-10 flex justify-end">
+          {/* 버튼 2개 */}
+          <div className="pt-10 flex justify-end gap-3">
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={handleLeftButton}
               className="h-[48px] w-[181px] rounded-md border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
             >
-              입력완료
+              {isEditMode ? "취소" : "정보 수정"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleRightButton}
+              className="h-[48px] w-[181px] rounded-md bg-blue-600 text-base text-white shadow-sm hover:bg-blue-700"
+            >
+              {isEditMode ? "수정 완료" : "입력 완료"}
             </button>
           </div>
         </form>

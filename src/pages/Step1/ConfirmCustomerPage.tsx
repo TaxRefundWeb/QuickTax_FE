@@ -79,9 +79,11 @@ export default function ConfirmCustomerPage() {
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <h1 className="mb-20 text-[24px] font-bold text-gray-900">
-          입력된 정보를 확인해 주세요
-        </h1>
+        <div className="-mt-8">
+          <h1 className="mb-20 text-[24px] font-bold text-gray-900">
+            입력된 정보를 확인해 주세요
+          </h1>
+        </div>
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
           {/* 이름 / 주민등록번호 */}
@@ -185,12 +187,11 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 버튼 2개 */}
           <div className="pt-10 flex justify-end gap-3">
             <button
               type="button"
               onClick={handleLeftButton}
-              className="h-[48px] w-[181px] rounded-md border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
+              className="h-[48px] w-[181px] rounded-lg border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
             >
               {isEditMode ? "취소" : "정보 수정"}
             </button>
@@ -198,7 +199,7 @@ export default function ConfirmCustomerPage() {
             <button
               type="button"
               onClick={handleRightButton}
-              className="h-[48px] w-[181px] rounded-md bg-blue-600 text-base text-white shadow-sm hover:bg-blue-700"
+              className="h-[48px] w-[181px] rounded-lg bg-blue-600 text-base text-white shadow-sm hover:bg-blue-700"
             >
               {isEditMode ? "수정 완료" : "입력 완료"}
             </button>

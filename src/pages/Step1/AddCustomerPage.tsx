@@ -40,10 +40,11 @@ export default function AddCustomerPage() {
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <h1 className="mb-20 text-[24px] font-bold text-gray-900">
-          신규 고객의 기본정보를 입력해주세요
-        </h1>
-
+        <div className="-mt-8">
+          <h1 className="mb-20 text-[24px] font-bold text-gray-900">
+            신규 고객의 기본정보를 입력해주세요
+          </h1>
+        </div>
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
           {/* 이름 / 주민등록번호 */}
           <div className="grid grid-cols-2 gap-6">
@@ -138,7 +139,7 @@ export default function AddCustomerPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              className="h-[48px] w-[181px] rounded-md border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
+              className="h-[48px] w-[181px] rounded-lg border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
             >
               입력완료
             </button>

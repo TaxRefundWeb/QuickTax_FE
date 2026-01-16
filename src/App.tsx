@@ -5,6 +5,8 @@ import StepLayout from "./components/layout/StepLayout";
 
 import AddCustomerPage from "./pages/Step1/AddCustomerPage";
 import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
+import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
+import ConfirmExistingPage from "./pages/Step1/ConfirmExistingPage"; // ✅ 추가
 
 function Step1Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,9 +20,30 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 처음 들어오면 Step1 Add로 보내기 */}
-        <Route path="/" element={<Navigate to="/step1/add" replace />} />
+        {/* ✅ 확인용: 처음 들어오면 ExistingCustomerPage로 보내기 */}
+        <Route path="/" element={<Navigate to="/step1/existing" replace />} />
 
+        {/* ✅ 기존 고객 입력 */}
+        <Route
+          path="/step1/existing"
+          element={
+            <Step1Layout>
+              <ExistingCustomerPage />
+            </Step1Layout>
+          }
+        />
+
+        {/* ✅ 기존 고객 확인 (추가) */}
+        <Route
+          path="/step1/existing/confirm"
+          element={
+            <Step1Layout>
+              <ConfirmExistingPage />
+            </Step1Layout>
+          }
+        />
+
+        {/* 신규 고객 입력 */}
         <Route
           path="/step1/add"
           element={
@@ -30,6 +53,7 @@ export default function App() {
           }
         />
 
+        {/* 신규 고객 확인 */}
         <Route
           path="/step1/confirm"
           element={

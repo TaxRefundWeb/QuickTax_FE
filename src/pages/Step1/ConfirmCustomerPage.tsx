@@ -24,17 +24,18 @@ export default function ConfirmCustomerPage() {
   });
 
   const [baselineForm, setBaselineForm] = useState<CustomerForm | null>(null);
-
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
     const state = location.state as { form?: CustomerForm } | null;
 
+    // ✅ state가 없으면 입력 페이지로 되돌리기 (라우트 통일)
     if (!state?.form) {
-      navigate("/step1/add", { replace: true });
+      navigate("/step1/add-customer", { replace: true });
       return;
     }
 
+    // 최초 진입 시에만 state.form을 세팅
     if (baselineForm === null) {
       setForm(state.form);
       setBaselineForm(state.form);
@@ -50,11 +51,11 @@ export default function ConfirmCustomerPage() {
 
   const handleLeftButton = () => {
     if (!isEditMode) {
-      setIsEditMode(true); // 정보 수정
+      setIsEditMode(true); // 정보 수정 모드 진입
       return;
     }
 
-    // 취소
+    // 취소: 원래 값으로 복구
     if (baselineForm) setForm(baselineForm);
     setIsEditMode(false);
   };
@@ -66,7 +67,7 @@ export default function ConfirmCustomerPage() {
       return;
     }
 
-    // 수정 완료
+    // 수정 완료: 기준값 업데이트
     setBaselineForm(form);
     setIsEditMode(false);
   };
@@ -79,7 +80,7 @@ export default function ConfirmCustomerPage() {
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <div className="-mt-8">
+        <div className="-mt-20">
           <h1 className="mb-20 text-[24px] font-bold text-gray-900">
             입력된 정보를 확인해 주세요
           </h1>
@@ -187,6 +188,7 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
+          {/* 버튼 */}
           <div className="pt-10 flex justify-end gap-3">
             <button
               type="button"

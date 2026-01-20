@@ -40,7 +40,7 @@ export default function AddCustomerPage() {
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <div className="-mt-8">
+        <div className="-mt-20">
           <h1 className="mb-20 text-[24px] font-bold text-gray-900">
             신규 고객의 기본정보를 입력해주세요
           </h1>

@@ -4,6 +4,9 @@ import StepLayout from "./components/layout/StepLayout";
 
 import LoginPage from "./pages/login/Login";
 import AddCustomerPage from "./pages/Step1/AddCustomerPage";
+import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
+import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
+import ConfirmExistingPage from "./pages/Step1/ConfirmExistingPage";
 
 export default function App() {
   return (
@@ -19,6 +22,36 @@ export default function App() {
             element={
               <StepLayout activeStep={0}>
                 <AddCustomerPage />
+              </StepLayout>
+            }
+          />
+
+          {/* Step1: 신규 고객 확인 */}
+          <Route
+            path="/step1/confirm"
+            element={
+              <StepLayout activeStep={0}>
+                <ConfirmCustomerPage />
+              </StepLayout>
+            }
+          />
+
+          {/* Step1: 기존 고객 입력 */}
+          <Route
+            path="/step1/existing"
+            element={
+              <StepLayout activeStep={0}>
+                <ExistingCustomerPage />
+              </StepLayout>
+            }
+          />
+
+          {/* Step1: 기존 고객 확인 */}
+          <Route
+            path="/step1/existing/confirm"
+            element={
+              <StepLayout activeStep={0}>
+                <ConfirmExistingPage />
               </StepLayout>
             }
           />

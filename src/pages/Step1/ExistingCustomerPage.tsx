@@ -199,7 +199,7 @@ export default function ExistingCustomerPage() {
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <div className="-mt-8">
+        <div className="-mt-20">
           <h1 className="mb-4 text-[24px] font-bold text-gray-900">
             경정청구 신청
           </h1>

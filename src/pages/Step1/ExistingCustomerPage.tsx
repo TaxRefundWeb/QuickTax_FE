@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom"; // ✅ 추가
+import { useNavigate } from "react-router-dom";
 
 type Option = { value: string; label: string };
 
@@ -44,7 +44,6 @@ function RadioDropdown({
     <div ref={wrapRef} className="relative">
       <label className="mb-2 block text-base text-gray-600">{label}</label>
 
-      {/* select처럼 보이는 버튼 */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -146,7 +145,7 @@ function DateInput({
 }
 
 export default function ExistingCustomerPage() {
-  const navigate = useNavigate(); // ✅ 추가
+  const navigate = useNavigate();
 
   // 드롭다운 값
   const [reduction, setReduction] = useState<string | null>(null); // 감면처리 여부 (여/부)

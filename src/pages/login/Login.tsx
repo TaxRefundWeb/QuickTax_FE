@@ -2,35 +2,42 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import LoginModal from "../../components/modal/LoginModal";
+import StartModal from "../../components/modal/StartModal";
 
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false);
 
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 🔹 실제 로그인 로직은 나중에
+    // TODO: 실제 로그인 로직은 나중에 서버 연동
     console.log({ id, pw });
 
-    // 🔹 지금은 로그인 성공 가정 → 모달 오픈
-    setIsModalOpen(true);
+    // 지금은 로그인 성공 가정 → LoginModal 오픈
+    setIsLoginModalOpen(true);
   };
 
+  // LoginModal: "신규 고객 추가" 버튼
   const handleAddCustomer = () => {
-    setIsModalOpen(false);
+    setIsLoginModalOpen(false);
     navigate("/step1/add-customer");
+  };
+
+  // ✅ LoginModal: 임시 버튼 → StartModal 열기
+  const handleOpenStartModal = () => {
+    setIsLoginModalOpen(false);
+    setIsStartModalOpen(true);
   };
 
   return (
     <div className={styles.wrapper}>
-      {/* 파란 반원 배경 */}
       <div className={styles.blueArc} />
-
-      {/* 실제 콘텐츠 */}
       <div className={styles.container}>
         <div className={styles.title}>Log In</div>
 
@@ -56,7 +63,6 @@ export default function Login() {
             />
           </div>
 
-          {/* 로그인 버튼 */}
           <button className={styles.button} type="submit">
             로그인하기
           </button>
@@ -74,9 +80,24 @@ export default function Login() {
 
       {/* 로그인 후 고객 선택 모달 */}
       <LoginModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
         onAddCustomer={handleAddCustomer}
+        onOpenStartModal={handleOpenStartModal}
+      />
+
+      {/* StartModal */}
+      <StartModal
+        open={isStartModalOpen}
+        userName="OOO"
+        onClose={() => setIsStartModalOpen(false)}
+        onLoadPrevious={() => {
+          console.log("이전 기록 불러오기");
+        }}
+        onStartNew={() => {
+          setIsStartModalOpen(false);
+          navigate("/step1/existing");
+        }}
       />
     </div>
   );

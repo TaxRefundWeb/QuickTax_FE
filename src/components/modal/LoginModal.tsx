@@ -5,12 +5,16 @@ type LoginModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddCustomer: () => void;
+
+  // ✅ 임시 버튼 클릭 시 StartModal을 열어달라고 부모에게 알림
+  onOpenStartModal: () => void;
 };
 
 export default function LoginModal({
   isOpen,
   onClose,
   onAddCustomer,
+  onOpenStartModal,
 }: LoginModalProps) {
   const [query, setQuery] = useState("");
 
@@ -86,6 +90,15 @@ export default function LoginModal({
 
           <div className={styles.tableBody}>
             <div className={styles.empty}>아직 등록된 고객이 없습니다.</div>
+
+            {/* ✅ 임시 버튼: StartModal 오픈 */}
+            <button
+              type="button"
+              className={styles.tempButton}
+              onClick={onOpenStartModal}
+            >
+              임시 버튼
+            </button>
           </div>
         </div>
 

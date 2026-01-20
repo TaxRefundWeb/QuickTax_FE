@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import LoginModal from "../../components/modal/LoginModal";
 
@@ -7,9 +8,21 @@ export default function Login() {
   const [pw, setPw] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const navigate = useNavigate();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 🔹 실제 로그인 로직은 나중에
     console.log({ id, pw });
+
+    // 🔹 지금은 로그인 성공 가정 → 모달 오픈
+    setIsModalOpen(true);
+  };
+
+  const handleAddCustomer = () => {
+    setIsModalOpen(false);
+    navigate("/step1/add-customer");
   };
 
   return (
@@ -43,12 +56,8 @@ export default function Login() {
             />
           </div>
 
-          {/* ⬇️ submit → modal open */}
-          <button
-            className={styles.button}
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-          >
+          {/* 로그인 버튼 */}
+          <button className={styles.button} type="submit">
             로그인하기
           </button>
 
@@ -63,18 +72,12 @@ export default function Login() {
         </form>
       </div>
 
-      {/* 확인용 로그인 모달 */}
+      {/* 로그인 후 고객 선택 모달 */}
       <LoginModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title="고객 선택"
-      >
-        <div style={{ display: "grid", gap: 12 }}>
-          <button>고객 A</button>
-          <button>고객 B</button>
-          <button>고객 C</button>
-        </div>
-      </LoginModal>
+        onAddCustomer={handleAddCustomer}
+      />
     </div>
   );
 }

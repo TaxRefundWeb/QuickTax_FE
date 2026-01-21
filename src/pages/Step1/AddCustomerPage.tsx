@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type CustomerForm = {
@@ -8,6 +8,9 @@ type CustomerForm = {
   address: string;
   bank: string;
   accountNumber: string;
+  nationalityCode: string;
+  nationality: string;
+  finalFee: string;
 };
 
 export default function AddCustomerPage() {
@@ -20,6 +23,9 @@ export default function AddCustomerPage() {
     address: "",
     bank: "",
     accountNumber: "",
+    nationalityCode: "",
+    nationality: "",
+    finalFee: "",
   });
 
   const handleChange = (
@@ -29,25 +35,37 @@ export default function AddCustomerPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // 다 입력해야 입력완료 버튼 눌리게
+  const isValid = useMemo(() => {
+    return Object.values(form).every((v) => v.trim() !== "");
+  }, [form]);
+
   const handleSubmit = () => {
-    // TODO: 여기서 간단 검증도 가능
+    if (!isValid) return;
     navigate("/step1/confirm", { state: { form } });
   };
 
   const inputBase =
-    "h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm outline-none focus:border-gray-300";
+    "h-[48px] w-full rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+
+  const inputFixed =
+    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+
+  const selectFixed =
+    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
 
   return (
     <div className="w-screen flex justify-center">
       <div className="w-[540px]">
-        <div className="-mt-20">
-          <h1 className="mb-20 text-[24px] font-bold text-gray-900">
+        <div className="-mt-[120px]">
+          <h1 className="mb-14 text-[24px] font-bold text-gray-900">
             신규 고객의 기본정보를 입력해주세요
           </h1>
         </div>
+
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-          {/* 이름 / 주민등록번호 */}
-          <div className="grid grid-cols-2 gap-6">
+          {/* 이름 */}
+          <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">이름</label>
               <input
@@ -55,10 +73,11 @@ export default function AddCustomerPage() {
                 type="text"
                 value={form.name}
                 onChange={handleChange}
-                className={inputBase}
+                className={`${inputFixed} w-[176px]`}
               />
             </div>
 
+            {/* 주민등록번호 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 주민등록번호
@@ -68,14 +87,16 @@ export default function AddCustomerPage() {
                 type="text"
                 value={form.rrn}
                 onChange={handleChange}
-                className={inputBase}
+                className={`${inputFixed} w-[320px]`}
               />
             </div>
           </div>
 
           {/* 전화번호 */}
           <div>
-            <label className="mb-2 block text-base text-gray-600">전화번호</label>
+            <label className="mb-2 pt-2 block text-base text-gray-600">
+              전화번호
+            </label>
             <input
               name="phone"
               type="text"
@@ -87,7 +108,7 @@ export default function AddCustomerPage() {
 
           {/* 주소 */}
           <div>
-            <label className="mb-2 block text-base text-gray-600">주소</label>
+            <label className="mb-2 pt-2 block text-base text-gray-600">주소</label>
             <input
               name="address"
               type="text"
@@ -97,15 +118,15 @@ export default function AddCustomerPage() {
             />
           </div>
 
-          {/* 은행 / 계좌번호 */}
-          <div className="grid grid-cols-2 gap-6">
+          {/* 은행 */}
+          <div className="pt-2 flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
               <select
                 name="bank"
                 value={form.bank}
                 onChange={handleChange}
-                className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-gray-300"
+                className={`${selectFixed} w-[176px]`}
               >
                 <option value="" disabled>
                   선택
@@ -121,25 +142,79 @@ export default function AddCustomerPage() {
               </select>
             </div>
 
+            {/* 계좌번호 */}
             <div>
-              <label className="mb-2 block text-base text-gray-600">계좌번호</label>
+              <label className="mb-2 block text-base text-gray-600">
+                계좌번호
+              </label>
               <input
                 name="accountNumber"
                 type="text"
                 value={form.accountNumber}
                 onChange={handleChange}
                 placeholder="'-' 제외 입력"
-                className={inputBase}
+                className={`${inputFixed} w-[320px] text-gray-700`}
               />
             </div>
           </div>
 
-          {/* 버튼 */}
-          <div className="pt-10 flex justify-end">
+          {/* 국적코드 */}
+          <div className="pt-2 flex justify-between">
+            <div>
+              <label className="mb-2 block text-base text-gray-600">
+                국적코드
+              </label>
+              <input
+                name="nationalityCode"
+                type="text"
+                value={form.nationalityCode}
+                onChange={handleChange}
+                className={`${inputFixed} w-[104px]`}
+              />
+            </div>
+
+            {/* 국적 */}
+            <div>
+              <label className="mb-2 block text-base text-gray-600">
+                국적
+              </label>
+              <input
+                name="nationality"
+                type="text"
+                value={form.nationality}
+                onChange={handleChange}
+                className={`${inputFixed} w-[320px]`}
+              />
+            </div>
+          </div>
+
+          {/* 최종 수수료 */}
+          <div className="pt-2 flex">
+            <div className="ml-auto flex flex-col">
+              <label className="mb-2 text-base text-gray-600">최종 수수료</label>
+              <input
+                name="finalFee"
+                type="text"
+                value={form.finalFee}
+                onChange={handleChange}
+                className={`${inputFixed} w-[320px]`}
+              />
+            </div>
+          </div>
+
+
+          {/* 입력완료 */}
+          <div className="pt-11 flex">
             <button
               type="button"
               onClick={handleSubmit}
-              className="h-[48px] w-[181px] rounded-lg border border-gray-200 bg-white text-base text-gray-700 shadow-sm hover:bg-gray-50"
+              disabled={!isValid}
+              className={[
+                "ml-auto h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
+                isValid
+                  ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
+                  : "border-gray-200 text-gray-400 cursor-not-allowed",
+              ].join(" ")}
             >
               입력완료
             </button>

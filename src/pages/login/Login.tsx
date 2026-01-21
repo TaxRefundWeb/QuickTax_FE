@@ -4,6 +4,9 @@ import styles from "./Login.module.css";
 import LoginModal from "../../components/modal/LoginModal";
 import StartModal from "../../components/modal/StartModal";
 
+// 선택 고객 타입 import
+import type { Customer } from "../../data/customersDummy";
+
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
@@ -11,15 +14,14 @@ export default function Login() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
 
+  // 선택된 고객 이름(또는 전체 customer를 저장해도 됨)
+  const [selectedCustomerName, setSelectedCustomerName] = useState("OOO");
+
   const navigate = useNavigate();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // TODO: 실제 로그인 로직은 나중에 서버 연동
     console.log({ id, pw });
-
-    // 지금은 로그인 성공 가정 → LoginModal 오픈
     setIsLoginModalOpen(true);
   };
 
@@ -29,8 +31,9 @@ export default function Login() {
     navigate("/step1/add-customer");
   };
 
-  // ✅ LoginModal: 임시 버튼 → StartModal 열기
-  const handleOpenStartModal = () => {
+  // LoginModal: 우측 화살표 → StartModal 열기 (+ 선택 고객 전달)
+  const handleOpenStartModal = (customer: Customer) => {
+    setSelectedCustomerName(customer.name); // 선택 고객 이름 반영
     setIsLoginModalOpen(false);
     setIsStartModalOpen(true);
   };
@@ -83,13 +86,13 @@ export default function Login() {
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onAddCustomer={handleAddCustomer}
-        onOpenStartModal={handleOpenStartModal}
+        onOpenStartModal={handleOpenStartModal} // customer를 받는 함수
       />
 
       {/* StartModal */}
       <StartModal
         open={isStartModalOpen}
-        userName="OOO"
+        userName={selectedCustomerName} // OOO 대신 선택 고객 이름
         onClose={() => setIsStartModalOpen(false)}
         onLoadPrevious={() => {
           console.log("이전 기록 불러오기");

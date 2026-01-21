@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import LoginModal from "../../components/modal/LoginModal";
 import StartModal from "../../components/modal/StartModal";
+import HistoryModal from "../../components/modal/HistoryModal";
 
 // 선택 고객 타입 import
 import type { Customer } from "../../data/customersDummy";
@@ -13,9 +14,10 @@ export default function Login() {
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  // 선택된 고객 이름(또는 전체 customer를 저장해도 됨)
-  const [selectedCustomerName, setSelectedCustomerName] = useState("OOO");
+  // ✅ 선택된 고객(이름만 말고 전체를 저장)
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const navigate = useNavigate();
 
@@ -31,10 +33,23 @@ export default function Login() {
     navigate("/step1/add-customer");
   };
 
-  // LoginModal: 우측 화살표 → StartModal 열기 (+ 선택 고객 전달)
+  // ✅ LoginModal: 우측 화살표 → StartModal 열기 (+ 선택 고객 저장)
   const handleOpenStartModal = (customer: Customer) => {
-    setSelectedCustomerName(customer.name); // 선택 고객 이름 반영
+    setSelectedCustomer(customer);
     setIsLoginModalOpen(false);
+    setIsStartModalOpen(true);
+  };
+
+  // ✅ StartModal: 이전 기록 열람하기 → HistoryModal 오픈
+  const handleOpenHistoryModal = () => {
+    if (!selectedCustomer) return;
+    setIsStartModalOpen(false);
+    setIsHistoryModalOpen(true);
+  };
+
+  // ✅ HistoryModal 닫기 → StartModal로 돌아가기(원하면 이 로직 바꿔도 됨)
+  const handleCloseHistoryModal = () => {
+    setIsHistoryModalOpen(false);
     setIsStartModalOpen(true);
   };
 
@@ -81,24 +96,33 @@ export default function Login() {
         </form>
       </div>
 
-      {/* 로그인 후 고객 선택 모달 */}
+      {/* 1) 로그인 후 고객 선택 모달 */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onAddCustomer={handleAddCustomer}
-        onOpenStartModal={handleOpenStartModal} // customer를 받는 함수
+        onOpenStartModal={handleOpenStartModal}
       />
 
-      {/* StartModal */}
+      {/* 2) StartModal */}
       <StartModal
         open={isStartModalOpen}
-        userName={selectedCustomerName} // OOO 대신 선택 고객 이름
+        userName={selectedCustomer?.name ?? "OOO"}
         onClose={() => setIsStartModalOpen(false)}
-        onLoadPrevious={() => {
-          console.log("이전 기록 불러오기");
-        }}
+        onLoadPrevious={handleOpenHistoryModal} // ✅ 연결!
         onStartNew={() => {
           setIsStartModalOpen(false);
+          navigate("/step1/existing");
+        }}
+      />
+
+      {/* 3) HistoryModal */}
+      <HistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={handleCloseHistoryModal}
+        customer={selectedCustomer}
+        onStartNew={() => {
+          setIsHistoryModalOpen(false);
           navigate("/step1/existing");
         }}
       />

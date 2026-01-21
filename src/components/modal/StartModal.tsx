@@ -15,6 +15,7 @@ export default function StartModal({
   onLoadPrevious,
   onStartNew,
 }: StartModalProps) {
+  // ESC 닫기 + body 스크롤 잠금
   useEffect(() => {
     if (!open) return;
 
@@ -22,8 +23,14 @@ export default function StartModal({
       if (e.key === "Escape") onClose();
     };
 
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -35,10 +42,7 @@ export default function StartModal({
       role="dialog"
     >
       {/* overlay */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* modal box */}
       <div className="relative flex h-[500px] w-[764px] max-w-[92vw] items-center justify-center rounded-2xl bg-white shadow-xl">
@@ -48,8 +52,8 @@ export default function StartModal({
           <div className="mb-8 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gray-200" />
             <h2 className="text-[24px] font-semibold text-gray-900">
-                <span className="text-[#64A5FF]">{userName}님</span>
-                <span>의 업무를 시작합니다.</span>
+              <span className="text-[#64A5FF]">{userName}님</span>
+              <span>의 업무를 시작합니다.</span>
             </h2>
           </div>
 

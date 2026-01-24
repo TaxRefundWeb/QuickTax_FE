@@ -7,6 +7,7 @@ import AddCustomerPage from "./pages/Step1/AddCustomerPage";
 import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
 import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
 import ConfirmExistingPage from "./pages/Step1/ConfirmExistingPage";
+import SelectPeriod from "./pages/Step1/SelectPeriod";
 
 export default function App() {
   return (
@@ -32,6 +33,16 @@ export default function App() {
             element={
               <StepLayout activeStep={0}>
                 <ConfirmCustomerPage />
+              </StepLayout>
+            }
+          />
+
+          {/* Step1: 경정청구 기간 선택 */}
+          <Route
+            path="/step1/period"
+            element={
+              <StepLayout activeStep={0}>
+                <SelectPeriod />
               </StepLayout>
             }
           />

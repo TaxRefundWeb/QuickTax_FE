@@ -112,7 +112,7 @@ export default function Login() {
         onLoadPrevious={handleOpenHistoryModal} // ✅ 연결!
         onStartNew={() => {
           setIsStartModalOpen(false);
-          navigate("/step1/existing");
+          navigate("/step1/period");
         }}
       />
 
@@ -123,7 +123,7 @@ export default function Login() {
         customer={selectedCustomer}
         onStartNew={() => {
           setIsHistoryModalOpen(false);
-          navigate("/step1/existing");
+          navigate("/step1/period");
         }}
       />
     </div>

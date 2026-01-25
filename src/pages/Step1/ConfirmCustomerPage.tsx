@@ -68,6 +68,7 @@ export default function ConfirmCustomerPage() {
 
   const handleRightButton = () => {
     if (!isEditMode) {
+      navigate("/step1/period", { replace: true });
       // 최종 제출 자리
       console.log("최종 제출:", form);
       return;

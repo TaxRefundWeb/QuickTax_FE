@@ -6,7 +6,6 @@ import LoginPage from "./pages/login/Login";
 import AddCustomerPage from "./pages/Step1/AddCustomerPage";
 import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
 import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
-import ConfirmExistingPage from "./pages/Step1/ConfirmExistingPage";
 import SelectPeriod from "./pages/Step1/SelectPeriod";
 
 export default function App() {
@@ -53,16 +52,6 @@ export default function App() {
             element={
               <StepLayout activeStep={0}>
                 <ExistingCustomerPage />
-              </StepLayout>
-            }
-          />
-
-          {/* Step1: 기존 고객 확인 */}
-          <Route
-            path="/step1/existing/confirm"
-            element={
-              <StepLayout activeStep={0}>
-                <ConfirmExistingPage />
               </StepLayout>
             }
           />

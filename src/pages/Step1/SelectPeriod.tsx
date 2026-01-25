@@ -142,8 +142,12 @@ export default function SelectPeriod() {
 
   const handleSubmit = () => {
     if (!isValid) return;
-    navigate("/step1/existing");
-  };
+
+  navigate("/step1/existing", {
+    state: { startYear, endYear },
+  });
+};
+
 
   return (
     <div className="w-screen flex justify-center">

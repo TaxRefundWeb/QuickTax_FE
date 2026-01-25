@@ -338,7 +338,7 @@ export default function ExistingCustomerPage() {
   const handleFinalSubmit = () => {
     if (!allValid) return;
 
-    navigate("/step1/existing/confirm", {
+    navigate("/step2/ocr-compare", {
       state: {
         period: { startYear, endYear },
         years: openYears.map(String),
@@ -346,6 +346,7 @@ export default function ExistingCustomerPage() {
       },
     });
   };
+
 
   return (
     <div className="w-screen flex justify-center">

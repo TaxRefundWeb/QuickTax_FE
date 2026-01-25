@@ -8,6 +8,9 @@ import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
 import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
 import SelectPeriod from "./pages/Step1/SelectPeriod";
 
+// ✅ 파일명 정확히 OCRComparePage.tsx
+import OCRComparePage from "./pages/Step2/OCRComparePage";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -52,6 +55,16 @@ export default function App() {
             element={
               <StepLayout activeStep={0}>
                 <ExistingCustomerPage />
+              </StepLayout>
+            }
+          />
+
+          {/* ✅ Step2: OCR 인식 결과 비교 */}
+          <Route
+            path="/step2/ocr-compare"
+            element={
+              <StepLayout activeStep={1}>
+                <OCRComparePage />
               </StepLayout>
             }
           />

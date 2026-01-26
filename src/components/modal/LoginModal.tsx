@@ -15,6 +15,10 @@ type LoginModalProps = {
 
   // 선택된 고객을 부모(Login.tsx)로 전달
   onOpenStartModal: (customer: Customer) => void;
+
+  // 추가: 밖 클릭/ESC로 닫을지 여부
+  closeOnBackdropClick?: boolean;
+  closeOnEsc?: boolean;
 };
 
 export default function LoginModal({
@@ -22,6 +26,8 @@ export default function LoginModal({
   onClose,
   onAddCustomer,
   onOpenStartModal,
+  closeOnBackdropClick = false, // 기본: 밖 클릭으로 닫지 않음
+  closeOnEsc = false,           // 기본: ESC로 닫지 않음
 }: LoginModalProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -40,7 +46,7 @@ export default function LoginModal({
     if (!isOpen) return;
 
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && closeOnEsc) onClose();
     };
 
     const prev = document.body.style.overflow;
@@ -51,9 +57,9 @@ export default function LoginModal({
       window.removeEventListener("keydown", handler);
       document.body.style.overflow = prev;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, closeOnEsc]);
 
-  // 모달 "닫힐 때" 선택/검색 초기화 (경고 방지)
+  // 모달 "닫힐 때" 선택/검색 초기화
   useEffect(() => {
     if (isOpen) return;
     setQuery("");
@@ -66,13 +72,18 @@ export default function LoginModal({
 
   const handleGoNext = () => {
     if (!selectedCustomer) return;
-    onOpenStartModal(selectedCustomer); // 선택 고객 전달
+    onOpenStartModal(selectedCustomer);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className={styles.backdrop} onMouseDown={onClose}>
+    <div
+      className={styles.backdrop}
+      onMouseDown={() => {
+        if (closeOnBackdropClick) onClose();
+      }}
+    >
       <div
         className={styles.modal}
         onMouseDown={(e) => e.stopPropagation()}

@@ -8,6 +8,9 @@ import HistoryModal from "../../components/modal/HistoryModal";
 // 선택 고객 타입 import
 import type { Customer } from "../../data/customersDummy";
 
+// 로그인 API
+import { login } from "../../lib/api/auth";
+
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
@@ -16,15 +19,34 @@ export default function Login() {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
-  // ✅ 선택된 고객(이름만 말고 전체를 저장)
+  // 선택된 고객(이름만 말고 전체를 저장)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+
+  // 로그인 진행 상태(중복 클릭 방지)
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ id, pw });
-    setIsLoginModalOpen(true);
+    if (!id || !pw) {
+      alert("아이디/비밀번호를 입력해줘!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // 백엔드: POST /api/auth/login  (쿠키 accessToken 발급)
+      await login(id, pw);
+
+      // 로그인 성공 시에만 고객 선택 모달 열기
+      setIsLoginModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      alert("로그인 실패. 아이디/비밀번호를 확인해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // LoginModal: "신규 고객 추가" 버튼
@@ -33,21 +55,21 @@ export default function Login() {
     navigate("/step1/add-customer");
   };
 
-  // ✅ LoginModal: 우측 화살표 → StartModal 열기 (+ 선택 고객 저장)
+  // LoginModal: 우측 화살표 → StartModal 열기 (+ 선택 고객 저장)
   const handleOpenStartModal = (customer: Customer) => {
     setSelectedCustomer(customer);
     setIsLoginModalOpen(false);
     setIsStartModalOpen(true);
   };
 
-  // ✅ StartModal: 이전 기록 열람하기 → HistoryModal 오픈
+  // StartModal: 이전 기록 열람하기 → HistoryModal 오픈
   const handleOpenHistoryModal = () => {
     if (!selectedCustomer) return;
     setIsStartModalOpen(false);
     setIsHistoryModalOpen(true);
   };
 
-  // ✅ HistoryModal 닫기 → StartModal로 돌아가기(원하면 이 로직 바꿔도 됨)
+  // HistoryModal 닫기 → StartModal로 돌아가기
   const handleCloseHistoryModal = () => {
     setIsHistoryModalOpen(false);
     setIsStartModalOpen(true);
@@ -81,8 +103,8 @@ export default function Login() {
             />
           </div>
 
-          <button className={styles.button} type="submit">
-            로그인하기
+          <button className={styles.button} type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "로그인 중..." : "로그인하기"}
           </button>
 
           <div className={styles.links}>
@@ -102,14 +124,17 @@ export default function Login() {
         onClose={() => setIsLoginModalOpen(false)}
         onAddCustomer={handleAddCustomer}
         onOpenStartModal={handleOpenStartModal}
+        closeOnBackdropClick={false}
+        closeOnEsc={false}
       />
+
 
       {/* 2) StartModal */}
       <StartModal
         open={isStartModalOpen}
         userName={selectedCustomer?.name ?? "OOO"}
         onClose={() => setIsStartModalOpen(false)}
-        onLoadPrevious={handleOpenHistoryModal} // ✅ 연결!
+        onLoadPrevious={handleOpenHistoryModal}
         onStartNew={() => {
           setIsStartModalOpen(false);
           navigate("/step1/period");

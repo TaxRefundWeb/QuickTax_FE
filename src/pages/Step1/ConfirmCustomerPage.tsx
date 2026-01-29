@@ -35,13 +35,11 @@ export default function ConfirmCustomerPage() {
   useEffect(() => {
     const state = location.state as { form?: CustomerForm } | null;
 
-    // state 없으면 입력 페이지로
     if (!state?.form) {
       navigate("/step1/add-customer", { replace: true });
       return;
     }
 
-    // 최초 진입 시 1회만 세팅
     if (baselineForm === null) {
       setForm(state.form);
       setBaselineForm(state.form);
@@ -61,48 +59,42 @@ export default function ConfirmCustomerPage() {
       return;
     }
 
-    // 취소 -> 원래 값으로
     if (baselineForm) setForm(baselineForm);
     setIsEditMode(false);
   };
 
   const handleRightButton = () => {
     if (!isEditMode) {
-      navigate("/step1/period", { replace: true });
-      // 최종 제출 자리
       console.log("최종 제출:", form);
+      navigate("/step1/period", { replace: true });
       return;
     }
 
-    // 수정 완료
     setBaselineForm(form);
     setIsEditMode(false);
   };
 
   const inputBase =
-    "h-[48px] w-full rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] w-full rounded-lg border bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
   const inputFixed =
-    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
   const selectFixed =
-    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
 
-  // 읽기/수정 모드에 따른 비활성 처리(스타일은 동일하게 두고 UX만 제한)
   const readonlyProps = (field: "input" | "select") => {
     if (field === "select") return { disabled: !isEditMode };
     return { readOnly: !isEditMode };
   };
 
   return (
-    <div className="w-screen flex justify-center">
-      <div className="w-[540px]">
-        <div className="-mt-[120px]">
-          <h1 className="mb-14 text-[24px] font-bold text-gray-900">
-            입력된 정보를 확인해 주세요
-          </h1>
-        </div>
+    <div className="w-full">
+      <div className="mx-auto w-full max-w-[540px]">
+        <h1 className="mb-14 text-[24px] font-bold text-gray-900">
+          입력된 정보를 확인해 주세요
+        </h1>
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-          {/* 이름 */}
+          {/* 이름 / 주민등록번호 */}
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">이름</label>
@@ -115,7 +107,6 @@ export default function ConfirmCustomerPage() {
               />
             </div>
 
-            {/* 주민등록번호 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 주민등록번호
@@ -132,7 +123,7 @@ export default function ConfirmCustomerPage() {
 
           {/* 전화번호 */}
           <div>
-            <label className="mb-2 pt-2 block text-base text-gray-600">
+            <label className="mb-2 block text-base text-gray-600">
               전화번호
             </label>
             <input
@@ -146,7 +137,7 @@ export default function ConfirmCustomerPage() {
 
           {/* 주소 */}
           <div>
-            <label className="mb-2 pt-2 block text-base text-gray-600">주소</label>
+            <label className="mb-2 block text-base text-gray-600">주소</label>
             <input
               name="address"
               value={form.address}
@@ -156,8 +147,8 @@ export default function ConfirmCustomerPage() {
             />
           </div>
 
-          {/* 은행 */}
-          <div className="pt-2 flex justify-between">
+          {/* 은행 / 계좌번호 */}
+          <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
               <select
@@ -181,7 +172,6 @@ export default function ConfirmCustomerPage() {
               </select>
             </div>
 
-            {/* 계좌번호 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 계좌번호
@@ -197,8 +187,8 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 국적코드 */}
-          <div className="pt-2 flex justify-between">
+          {/* 국적코드 / 국적 */}
+          <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 국적코드
@@ -212,7 +202,6 @@ export default function ConfirmCustomerPage() {
               />
             </div>
 
-            {/* 국적 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">국적</label>
               <input
@@ -225,10 +214,12 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 최종 수수료*/}
-          <div className="pt-2 flex">
-            <div className="ml-auto flex flex-col">
-              <label className="mb-2 text-base text-gray-600">최종 수수료</label>
+          {/* 최종 수수료 */}
+          <div className="flex justify-end">
+            <div className="flex flex-col">
+              <label className="mb-2 text-base text-gray-600">
+                최종 수수료
+              </label>
               <input
                 name="finalFee"
                 value={form.finalFee}
@@ -239,15 +230,13 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          <div className="pt-11 flex">
-            <div className="ml-auto flex gap-3">
+          {/* 버튼 */}
+          <div className="pt-11 flex justify-end">
+            <div className="flex gap-3">
               <button
                 type="button"
                 onClick={handleLeftButton}
-                className={[
-                  "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                  "border-gray-200 text-gray-700 hover:bg-gray-50",
-                ].join(" ")}
+                className="h-[48px] w-[181px] rounded-lg border border-gray-200 bg-white text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
                 {isEditMode ? "취소" : "정보 수정"}
               </button>
@@ -255,10 +244,7 @@ export default function ConfirmCustomerPage() {
               <button
                 type="button"
                 onClick={handleRightButton}
-                className={[
-                  "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                  "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10",
-                ].join(" ")}
+                className="h-[48px] w-[181px] rounded-lg border border-[#64A5FF] bg-white text-base font-medium text-[#64A5FF] shadow-sm hover:bg-[#64A5FF]/10"
               >
                 {isEditMode ? "수정완료" : "입력완료"}
               </button>

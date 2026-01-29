@@ -46,25 +46,23 @@ export default function AddCustomerPage() {
   };
 
   const inputBase =
-    "h-[48px] w-full rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] w-full rounded-lg border bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
 
   const inputFixed =
-    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
 
   const selectFixed =
-    "h-[48px] rounded-md bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
+    "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
 
   return (
-    <div className="w-screen flex justify-center">
-      <div className="w-[540px]">
-        <div className="-mt-[120px]">
-          <h1 className="mb-14 text-[24px] font-bold text-gray-900">
-            신규 고객의 기본정보를 입력해주세요
-          </h1>
-        </div>
+    <div className="w-full">
+      <div className="mx-auto w-full max-w-[540px]">
+        <h1 className="mb-14 text-[24px] font-bold text-gray-900">
+          신규 고객의 기본정보를 입력해주세요
+        </h1>
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-          {/* 이름 */}
+          {/* 이름 / 주민등록번호 */}
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">이름</label>
@@ -77,7 +75,6 @@ export default function AddCustomerPage() {
               />
             </div>
 
-            {/* 주민등록번호 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 주민등록번호
@@ -94,7 +91,7 @@ export default function AddCustomerPage() {
 
           {/* 전화번호 */}
           <div>
-            <label className="mb-2 pt-2 block text-base text-gray-600">
+            <label className="mb-2 block text-base text-gray-600">
               전화번호
             </label>
             <input
@@ -108,7 +105,7 @@ export default function AddCustomerPage() {
 
           {/* 주소 */}
           <div>
-            <label className="mb-2 pt-2 block text-base text-gray-600">주소</label>
+            <label className="mb-2 block text-base text-gray-600">주소</label>
             <input
               name="address"
               type="text"
@@ -118,8 +115,8 @@ export default function AddCustomerPage() {
             />
           </div>
 
-          {/* 은행 */}
-          <div className="pt-2 flex justify-between">
+          {/* 은행 / 계좌번호 */}
+          <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
               <select
@@ -142,7 +139,6 @@ export default function AddCustomerPage() {
               </select>
             </div>
 
-            {/* 계좌번호 */}
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 계좌번호
@@ -158,8 +154,8 @@ export default function AddCustomerPage() {
             </div>
           </div>
 
-          {/* 국적코드 */}
-          <div className="pt-2 flex justify-between">
+          {/* 국적코드 / 국적 */}
+          <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">
                 국적코드
@@ -173,11 +169,8 @@ export default function AddCustomerPage() {
               />
             </div>
 
-            {/* 국적 */}
             <div>
-              <label className="mb-2 block text-base text-gray-600">
-                국적
-              </label>
+              <label className="mb-2 block text-base text-gray-600">국적</label>
               <input
                 name="nationality"
                 type="text"
@@ -189,8 +182,8 @@ export default function AddCustomerPage() {
           </div>
 
           {/* 최종 수수료 */}
-          <div className="pt-2 flex">
-            <div className="ml-auto flex flex-col">
+          <div className="flex justify-end">
+            <div className="flex flex-col">
               <label className="mb-2 text-base text-gray-600">최종 수수료</label>
               <input
                 name="finalFee"
@@ -202,15 +195,14 @@ export default function AddCustomerPage() {
             </div>
           </div>
 
-
           {/* 입력완료 */}
-          <div className="pt-11 flex">
+          <div className="pt-11 flex justify-end">
             <button
               type="button"
               onClick={handleSubmit}
               disabled={!isValid}
               className={[
-                "ml-auto h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
+                "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
                 isValid
                   ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
                   : "border-gray-200 text-gray-400 cursor-not-allowed",

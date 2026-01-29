@@ -186,10 +186,10 @@ export default function OcrComparePage() {
   }, [activeYear, formsByYear]);
 
   return (
-    <div className="w-screen flex justify-center">
-      <div className="w-[1152px]">
+    <div className="w-full flex justify-center">
+      <div className="w-[1400px]">
         {/* 상단 */}
-        <div className="-mt-[120px]">
+        <div>
           <div className="grid grid-cols-[260px_1fr] gap-6">
             {/* 현재 파일 */}
             <div className="rounded-[12px] border border-gray-200 bg-white p-4">
@@ -459,32 +459,32 @@ function OcrFixedPanel({ activeYear }: { activeYear: string }) {
       </div>
 
       {/* 파란 폼 영역 */}
-    <div className="flex-1 w-[530px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
-        {/* 스크롤은 바깥에서 담당 (우측 테두리에 딱 붙음) */}
+      <div className="flex-1 w-[530px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
         <div className="h-full overflow-auto">
-            {/* 파란 배경 + 패딩은 안쪽으로 */}
-            <div className="bg-[#F3F8FF] px-6 py-5 min-h-full">
-                {OCR_SECTIONS.map((sec, idx) => (
-                    <div key={sec.title}>
-                        <h2 className="mb-4 text-[16px] font-semibold text-gray-800">
-                            {sec.title}
-                        </h2>
+          <div className="bg-[#F3F8FF] px-6 py-5 min-h-full">
+            {OCR_SECTIONS.map((sec, idx) => (
+              <div key={sec.title}>
+                <h2 className="mb-4 text-[16px] font-semibold text-gray-800">
+                  {sec.title}
+                </h2>
 
-                        <div className="pl-5 space-y-3">
-                            {sec.rows.map((row) => (
-                                <OcrFixedRow key={`${sec.title}-${row.label}`} row={row} />
-                            ))}
-                        </div>
+                <div className="pl-5 space-y-3">
+                  {sec.rows.map((row) => (
+                    <OcrFixedRow
+                      key={`${sec.title}-${row.label}`}
+                      row={row}
+                    />
+                  ))}
+                </div>
 
-                        {idx !== OCR_SECTIONS.length - 1 ? (
-                            <div className="my-5 h-px bg-[#D8E6FF]" />
-                        ) : null}
-                    </div>
-                ))}
-            </div>
+                {idx !== OCR_SECTIONS.length - 1 ? (
+                  <div className="my-5 h-px bg-[#D8E6FF]" />
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
-    </div>
-
+      </div>
 
       {/* 버튼 영역 */}
       <div className="px-6 py-2 mt-6">
@@ -511,12 +511,10 @@ function OcrFixedPanel({ activeYear }: { activeYear: string }) {
 function OcrFixedRow({ row }: { row: OcrRow }) {
   return (
     <div className="grid grid-cols-[1fr_220px] items-center gap-3">
-      {/* 왼쪽: 라벨 (길어지면 여기서만 영향을 받음) */}
       <span className="font-inter text-[16px] font-medium text-[#6D6D6D] leading-normal">
         {row.label}
       </span>
 
-      {/* 오른쪽: badge + 입력칸 (항상 같은 시작 위치) */}
       <div className="flex items-center justify-end gap-1">
         {row.badge ? (
           <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#E7F0FF] px-2 text-[10px] font-medium text-[#2F6FED]">

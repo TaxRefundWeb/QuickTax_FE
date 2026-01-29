@@ -30,7 +30,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !pw) {
-      alert("아이디/비밀번호를 입력해줘!");
+      alert("아이디와 비밀번호를 입력해주세요");
       return;
     }
 

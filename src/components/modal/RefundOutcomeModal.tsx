@@ -41,12 +41,6 @@ export default function RefundOutcomeModal({
   const [pageCount, setPageCount] = useState(1);
   const [page, setPage] = useState(1);
 
-  // 모달 열릴 때 페이지 초기화
-  useEffect(() => {
-    if (!isOpen) return;
-    setPage(1);
-  }, [isOpen]);
-
   // ESC 닫기 + body 스크롤 잠금
   useEffect(() => {
     if (!isOpen) return;

@@ -46,10 +46,8 @@ function YearRadioDropdown({
     };
   }, [open]);
 
-  const selectedLabel = value || "";
-
   return (
-    <div ref={rootRef} className="relative w-[269px] h-[64px]">
+    <div ref={rootRef} className="relative h-[64px] w-[200px]">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -60,8 +58,8 @@ function YearRadioDropdown({
           open ? "border-[#64A5FF]" : "border-gray-200",
         ].join(" ")}
       >
-        <span className={selectedLabel ? "text-gray-700" : "text-gray-300"}>
-          {selectedLabel || "선택"}
+        <span className={value ? "text-gray-700" : "text-gray-300"}>
+          {value || "선택"}
         </span>
 
         <svg
@@ -100,8 +98,6 @@ function YearRadioDropdown({
                     "flex w-full items-center gap-5 px-4 py-3 text-left",
                     checked ? "bg-[#EAF2FF]" : "hover:bg-gray-50",
                   ].join(" ")}
-                  role="option"
-                  aria-selected={checked}
                 >
                   <span
                     className={[
@@ -134,78 +130,103 @@ export default function SelectPeriod() {
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
 
+  const [claimDate, setClaimDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+
   const isValid = useMemo(() => {
-    if (!startYear || !endYear) return false;
+    if (!startYear || !endYear || !claimDate) return false;
     return Number(startYear) <= Number(endYear);
-  }, [startYear, endYear]);
+  }, [startYear, endYear, claimDate]);
 
   const handleSubmit = () => {
     if (!isValid) return;
-    navigate("/step1/existing", { state: { startYear, endYear } });
+    navigate("/step1/existing", { state: { startYear, endYear, claimDate } });
   };
 
+  const showYearError =
+    !!startYear && !!endYear && Number(startYear) > Number(endYear);
+
   return (
-    // ✅ 부모(StepLayout)에 중앙정렬이 없어도 여기서 중앙정렬 책임짐
     <div className="w-full">
       <div className="mx-auto w-full max-w-[920px]">
         <div className="w-[580px]">
           <h1 className="mb-4 text-[24px] font-bold text-gray-900">
             경정청구 신청
           </h1>
+
           <p className="mb-[120px] text-[16px] text-gray-500">
             경정청구를 신청할 기간을 선택해 주세요 <br />
             기간을 선택하면 상세 입력창이 나타납니다.
           </p>
-
-          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-            <div>
-              <label className="mb-2 block text-[20px] font-medium text-[#595959] leading-normal">
+          <form onSubmit={(e) => e.preventDefault()}>
+            <div className="grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
+              <label className="text-[20px] text-[#595959]">
                 경정청구 기간
               </label>
+              <div />
+              <div />
+              <div />
+              <label className="text-[20px] text-[#595959]">
+                청구 일자
+              </label>
+              <div />
+            </div>
 
-              <div className="grid grid-cols-[269px_auto_269px_181px] items-center gap-6">
-                <YearRadioDropdown
-                  value={startYear}
-                  onChange={setStartYear}
-                  options={YEAR_OPTIONS}
-                />
 
-                <div className="flex justify-center">
-                  <span className="text-[20px] text-gray-300">—</span>
-                </div>
+            <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
+              <YearRadioDropdown
+                value={startYear}
+                onChange={setStartYear}
+                options={YEAR_OPTIONS}
+              />
 
-                <YearRadioDropdown
-                  value={endYear}
-                  onChange={setEndYear}
-                  options={YEAR_OPTIONS}
-                />
-
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={!isValid}
-                  className={[
-                    "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                    isValid
-                      ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
-                      : "border-gray-200 text-gray-400 cursor-not-allowed",
-                  ].join(" ")}
-                >
-                  입력완료
-                </button>
+              <div className="flex h-[64px] items-center justify-center">
+                <span className="text-[20px] text-gray-300">—</span>
               </div>
 
-              <p
+              <YearRadioDropdown
+                value={endYear}
+                onChange={setEndYear}
+                options={YEAR_OPTIONS}
+              />
+              <div />
+
+              <input
+                type="date"
+                value={claimDate}
+                onChange={(e) => setClaimDate(e.target.value)}
                 className={[
-                  "mt-2 min-h-[20px] text-[13px]",
-                  !isValid && startYear && endYear
-                    ? "text-red-500"
-                    : "text-transparent",
+                  "h-[64px] w-[181px]",
+                  "rounded-[4px] border bg-[#FAFAFA] px-4",
+                  "text-[18px] text-gray-700 outline-none",
+                  "border-gray-200 focus:border-[#64A5FF]",
+                ].join(" ")}
+              />
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!isValid}
+                className={[
+                  "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
+                  isValid
+                    ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
+                    : "border-gray-200 text-gray-400 cursor-not-allowed",
                 ].join(" ")}
               >
-                시작 연도는 종료 연도보다 작아야 합니다.
-              </p>
+                입력완료
+              </button>
             </div>
+
+            <p
+              className={[
+                "mt-2 min-h-[20px] text-[13px]",
+                showYearError ? "text-red-500" : "text-transparent",
+              ].join(" ")}
+            >
+              시작 연도는 종료 연도보다 작아야 합니다.
+            </p>
           </form>
         </div>
       </div>

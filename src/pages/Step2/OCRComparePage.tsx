@@ -113,13 +113,11 @@ export default function OcrComparePage() {
   }, [yearsFromPrev]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const [isDragging, setIsDragging] = useState(false);
 
   const [filesByYear, setFilesByYear] = useState<Record<string, File | null>>(
     {}
   );
-
   const [pdfUrlByYear, setPdfUrlByYear] = useState<Record<string, string>>({});
 
   const selectedFileName = useMemo(() => {
@@ -180,6 +178,18 @@ export default function OcrComparePage() {
   }, [activeYear]);
 
   const currentPdfUrl = pdfUrlByYear[activeYear] ?? "";
+
+  // ✅ "계산하기" 눌렀을 때 Step3로 이동
+  const handleGoToStep3 = () => {
+    // 필요하면 여기서 "activeYear에 PDF가 업로드 되었는지" 체크도 가능
+    // if (!filesByYear[activeYear]) { alert("먼저 PDF를 업로드해 주세요!"); return; }
+
+    navigate("/step3/compare", {
+      state: {
+        year: activeYear, // Step3에서 쓰고 싶으면 사용
+      },
+    });
+  };
 
   useEffect(() => {
     if (!activeYear) return;
@@ -294,7 +304,6 @@ export default function OcrComparePage() {
               {/* PDF 영역 */}
               <div className="h-[calc(760px-24px-32px)] overflow-hidden rounded-[10px] border border-gray-200 bg-white">
                 {!currentPdfUrl ? (
-                  // ✅ m-4 제거 + 부모 padding(p-4)로 안전하게 안 잘리게!
                   <div className="h-full p-4">
                     <div
                       className={[
@@ -427,8 +436,11 @@ export default function OcrComparePage() {
               </div>
             </div>
 
-            {/* 우측 OCR 결과 */}
-            <OcrFixedPanel activeYear={activeYear} />
+            {/* ✅ 우측 OCR 결과 (계산하기 버튼 연결) */}
+            <OcrFixedPanel
+              activeYear={activeYear}
+              onCalculate={handleGoToStep3}
+            />
           </div>
         </div>
       </div>
@@ -473,7 +485,13 @@ function YearTabs({
   );
 }
 
-function OcrFixedPanel({ activeYear }: { activeYear: string }) {
+function OcrFixedPanel({
+  activeYear,
+  onCalculate,
+}: {
+  activeYear: string;
+  onCalculate: () => void;
+}) {
   const PANEL_W = 600;
 
   return (
@@ -525,8 +543,10 @@ function OcrFixedPanel({ activeYear }: { activeYear: string }) {
             수정하기
           </button>
 
+          {/* ✅ 여기! onClick만 연결 */}
           <button
             type="button"
+            onClick={onCalculate}
             className="h-[40px] w-[120px] rounded-[6px] bg-[#64A5FF] text-[13px] font-medium text-white hover:bg-[#4F93FF]"
           >
             계산하기

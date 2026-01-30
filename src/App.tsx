@@ -8,6 +8,7 @@ import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
 import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
 import SelectPeriod from "./pages/Step1/SelectPeriod";
 import OCRComparePage from "./pages/Step2/OCRComparePage";
+import CalculationCompare from "./pages/Step3/CalculationCompare";
 
 export default function App() {
   return (
@@ -57,7 +58,7 @@ export default function App() {
             }
           />
 
-          {/* ✅ Step2: OCR 인식 결과 비교 */}
+          {/* Step2: OCR 인식 결과 비교 */}
           <Route
             path="/step2/ocr-compare"
             element={
@@ -66,6 +67,17 @@ export default function App() {
               </StepLayout>
             }
           />
+
+          {/* Step3: 계산 결과 비교 */}
+          <Route
+            path="/step3/compare"
+            element={
+              <StepLayout activeStep={2}>
+                <CalculationCompare />
+              </StepLayout>
+            }
+          />
+
 
           {/* 없는 경로는 로그인으로 */}
           <Route path="*" element={<Navigate to="/" replace />} />

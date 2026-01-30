@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import CalculationCard from "../../components/card/CalculationCard";
+import RefundOutcomeModal, {
+  type RefundOutcomeStep,
+} from "../../components/modal/RefundOutcomeModal";
 import {
   customersDummy,
   type Customer,
@@ -73,12 +76,16 @@ export default function CalculationCompare({ customerId, year }: Props) {
     ).id;
   }, [plans]);
 
+  // Step4 모달 상태
+  const [isOutcomeOpen, setIsOutcomeOpen] = useState(false);
+  const [outcomeStep, setOutcomeStep] = useState<RefundOutcomeStep>("review");
+
   const onSubmit = () => {
     if (!pickedPlan) return;
 
-    // TODO: Step4 모달 열기
+    setOutcomeStep("review");
+    setIsOutcomeOpen(true);
   };
-
 
   return (
     <div className="w-full flex justify-center">
@@ -154,6 +161,18 @@ export default function CalculationCompare({ customerId, year }: Props) {
             선택 완료
           </button>
         </div>
+
+        {/* Step4 모달 연결 */}
+        <RefundOutcomeModal
+          isOpen={isOutcomeOpen}
+          step={outcomeStep}
+          onClose={() => setIsOutcomeOpen(false)}
+          refundAmount={pickedPlan?.refundExpected ?? 0}
+          pdfFile={null} // TODO: 선택한 플랜에 해당하는 PDF로 연결
+          onConfirm={() => setOutcomeStep("completed")}
+          onDownloadPdf={() => console.log("PDF 출력하기")}
+          onDownloadZip={() => console.log("ZIP 파일 다운로드")}
+        />
       </div>
     </div>
   );

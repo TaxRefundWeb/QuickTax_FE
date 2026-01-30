@@ -23,7 +23,7 @@ type YearForm = {
 
 type OcrNavState = {
   period?: PeriodState;
-  years?: string[]; // ["2020","2021",...]
+  years?: string[];
   formsByYear?: Record<string, YearForm>;
 };
 
@@ -85,7 +85,6 @@ export default function OcrComparePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  /** Existing에서 넘어온 state */
   const navState = (location.state as OcrNavState | null) ?? null;
 
   const startYear = navState?.period?.startYear ?? "";
@@ -93,14 +92,12 @@ export default function OcrComparePage() {
   const yearsFromPrev = navState?.years ?? [];
   const formsByYear = navState?.formsByYear ?? {};
 
-  /** state 없이 직접 접근하면 Step1 기간선택으로 보내기 */
   useEffect(() => {
     if (!startYear || !endYear || yearsFromPrev.length === 0) {
       navigate("/step1/period", { replace: true });
     }
   }, [startYear, endYear, yearsFromPrev.length, navigate]);
 
-  /** 상단: 연도 탭을 Existing에서 넘어온 years로 세팅 */
   const [openYears, setOpenYears] = useState<number[]>([]);
   const [activeYear, setActiveYear] = useState<string>("");
 
@@ -117,21 +114,19 @@ export default function OcrComparePage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // 연도별 선택 파일 저장
+  const [isDragging, setIsDragging] = useState(false);
+
   const [filesByYear, setFilesByYear] = useState<Record<string, File | null>>(
     {}
   );
 
-  // 연도별 PDF URL 저장 (ObjectURL)
   const [pdfUrlByYear, setPdfUrlByYear] = useState<Record<string, string>>({});
 
-  // 현재 activeYear의 파일명 표시용
   const selectedFileName = useMemo(() => {
     const f = filesByYear[activeYear];
     return f?.name ?? "";
   }, [filesByYear, activeYear]);
 
-  // 파일 선택 처리: activeYear에 매핑 저장 + PDF URL 생성
   const handlePickFile = (file: File) => {
     if (!activeYear) return;
 
@@ -147,7 +142,6 @@ export default function OcrComparePage() {
     setFilesByYear((prev) => ({ ...prev, [activeYear]: file }));
 
     setPdfUrlByYear((prev) => {
-      // 기존 url 있으면 revoke (메모리 누수 방지)
       const prevUrl = prev[activeYear];
       if (prevUrl) URL.revokeObjectURL(prevUrl);
 
@@ -156,7 +150,17 @@ export default function OcrComparePage() {
     });
   };
 
-  // 컴포넌트 언마운트 시 revoke
+  const handleDropFile = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    handlePickFile(file);
+  };
+
   useEffect(() => {
     return () => {
       Object.values(pdfUrlByYear).forEach((url) => {
@@ -166,12 +170,10 @@ export default function OcrComparePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** PDF 뷰어 상태 */
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1);
 
-  // 연도 바뀌면 페이지 1 + scale 초기화
   useEffect(() => {
     setPageNumber(1);
     setScale(1);
@@ -179,7 +181,6 @@ export default function OcrComparePage() {
 
   const currentPdfUrl = pdfUrlByYear[activeYear] ?? "";
 
-  /** (선택) 연도 변경 시, 해당 연도의 입력데이터가 있는지 확인용 로그 */
   useEffect(() => {
     if (!activeYear) return;
     // console.log("선택 연도:", activeYear, formsByYear[activeYear]);
@@ -197,7 +198,6 @@ export default function OcrComparePage() {
                 현재 보고있는 파일
               </p>
 
-              {/* 숨김 파일 input */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -208,8 +208,6 @@ export default function OcrComparePage() {
                   if (!file) return;
 
                   handlePickFile(file);
-
-                  // 같은 파일 다시 선택 가능하게 초기화
                   e.currentTarget.value = "";
                 }}
               />
@@ -263,7 +261,6 @@ export default function OcrComparePage() {
             <div className="p-6">
               <div className="mb-4 flex items-center justify-end">
                 <div className="flex items-center gap-2">
-                  {/* 확대/축소 */}
                   <div className="ml-2 flex items-center gap-2">
                     <button
                       type="button"
@@ -297,10 +294,47 @@ export default function OcrComparePage() {
               {/* PDF 영역 */}
               <div className="h-[calc(760px-24px-32px)] overflow-hidden rounded-[10px] border border-gray-200 bg-white">
                 {!currentPdfUrl ? (
-                  <div className="flex h-full items-center justify-center text-[13px] text-gray-400">
-                    {activeYear
-                      ? `${activeYear}년 PDF를 불러와 주세요.`
-                      : "연도를 선택해 주세요."}
+                  // ✅ m-4 제거 + 부모 padding(p-4)로 안전하게 안 잘리게!
+                  <div className="h-full p-4">
+                    <div
+                      className={[
+                        "flex h-full items-center justify-center text-[13px] text-gray-400",
+                        "border-2 border-dashed rounded-[10px]",
+                        isDragging
+                          ? "border-[#64A5FF] bg-[#F3F8FF]"
+                          : "border-gray-200 bg-white",
+                      ].join(" ")}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(true);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (!isDragging) setIsDragging(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDragging(false);
+                      }}
+                      onDrop={handleDropFile}
+                    >
+                      <div className="text-center">
+                        <div className="text-[13px] text-gray-600">
+                          {activeYear
+                            ? `${activeYear}년 PDF를 불러와 주세요.`
+                            : "연도를 선택해 주세요."}
+                        </div>
+                        {activeYear && (
+                          <div className="mt-1 text-[12px] text-gray-400">
+                            여기에 PDF를 드래그해서 놓거나, 왼쪽에서 파일을
+                            선택하세요
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <div className="h-full p-4">
@@ -330,7 +364,6 @@ export default function OcrComparePage() {
                         </div>
                       }
                     >
-                      {/* 상단 정보 */}
                       <div className="mb-3 flex items-center justify-between text-[12px] text-gray-500">
                         <span>
                           {pageNumber} / {numPages || "-"}
@@ -340,9 +373,7 @@ export default function OcrComparePage() {
                         </span>
                       </div>
 
-                      {/* 썸네일 + 본문 */}
                       <div className="grid h-[calc(100%-72px)] grid-cols-[92px_1fr] gap-4">
-                        {/* 썸네일 리스트 */}
                         <div className="h-full overflow-auto pr-1">
                           <div className="space-y-2">
                             {Array.from({ length: numPages || 0 }, (_, i) => {
@@ -379,7 +410,6 @@ export default function OcrComparePage() {
                           </div>
                         </div>
 
-                        {/* 본문 페이지 */}
                         <div className="h-[558px] overflow-auto border border-gray-200 bg-white">
                           <div className="flex justify-center p-4">
                             <Page
@@ -443,23 +473,26 @@ function YearTabs({
   );
 }
 
-/** 오른쪽: 사진처럼 고정된 OCR 폼(빈칸은 서버값으로 나중에 채움) */
 function OcrFixedPanel({ activeYear }: { activeYear: string }) {
+  const PANEL_W = 600;
+
   return (
-    <div className="h-full bg-white flex flex-col">
-      {/* 헤더 */}
-      <div className="ml-[38px] p-6">
-        <div className="mb-2 flex items-center gap-2">
-          <p className="text-[18px] font-semibold text-gray-800">OCR 인식 결과</p>
-          <span className="text-[12px] text-gray-400">ⓘ</span>
+    <div className="h-full bg-white flex flex-col items-center">
+      <div className={`w-[${PANEL_W}px]`}>
+        <div className="pt-6 pl-[40px]">
+          <div className="mb-2 flex items-center gap-2">
+            <p className="text-[18px] font-semibold text-gray-800">
+              OCR 인식 결과
+            </p>
+            <span className="text-[12px] text-gray-400">ⓘ</span>
+          </div>
+          <p className="mb-4 text-[14px] text-gray-500">
+            좌측의 원본 서류와 비교하여 수정해주세요
+          </p>
         </div>
-        <p className="text-[14px] text-gray-500">
-          좌측의 원본 서류와 비교하여 수정해주세요
-        </p>
       </div>
 
-      {/* 파란 폼 영역 */}
-      <div className="flex-1 w-[530px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
+      <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
         <div className="h-full overflow-auto">
           <div className="bg-[#F3F8FF] px-6 py-5 min-h-full">
             {OCR_SECTIONS.map((sec, idx) => (
@@ -470,10 +503,7 @@ function OcrFixedPanel({ activeYear }: { activeYear: string }) {
 
                 <div className="pl-5 space-y-3">
                   {sec.rows.map((row) => (
-                    <OcrFixedRow
-                      key={`${sec.title}-${row.label}`}
-                      row={row}
-                    />
+                    <OcrFixedRow key={`${sec.title}-${row.label}`} row={row} />
                   ))}
                 </div>
 
@@ -486,9 +516,8 @@ function OcrFixedPanel({ activeYear }: { activeYear: string }) {
         </div>
       </div>
 
-      {/* 버튼 영역 */}
-      <div className="px-6 py-2 mt-6">
-        <div className="flex justify-end gap-3">
+      <div className="w-[600px] mt-6 flex justify-end px-0 py-2">
+        <div className="flex gap-3">
           <button
             type="button"
             className="h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50"

@@ -7,8 +7,6 @@ import AddCustomerPage from "./pages/Step1/AddCustomerPage";
 import ConfirmCustomerPage from "./pages/Step1/ConfirmCustomerPage";
 import ExistingCustomerPage from "./pages/Step1/ExistingCustomerPage";
 import SelectPeriod from "./pages/Step1/SelectPeriod";
-
-// ✅ 파일명 정확히 OCRComparePage.tsx
 import OCRComparePage from "./pages/Step2/OCRComparePage";
 
 export default function App() {

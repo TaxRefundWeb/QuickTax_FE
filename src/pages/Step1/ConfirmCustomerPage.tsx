@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 type CustomerForm = {
@@ -7,11 +7,48 @@ type CustomerForm = {
   phone: string;
   address: string;
   bank: string;
+  bankCustom: string;
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
   finalFee: string;
 };
+
+const BANK_LIST = [
+  "KB국민",
+  "신한",
+  "우리",
+  "하나",
+  "NH농협",
+  "IBK기업",
+  "카카오뱅크",
+  "토스뱅크",
+] as const;
+
+function onlyDigits(v: string) {
+  return v.replace(/\D/g, "");
+}
+
+function formatRRN(value: string) {
+  const digits = onlyDigits(value).slice(0, 13);
+  if (digits.length <= 6) return digits;
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`;
+}
+
+function formatPhone(value: string) {
+  const d = onlyDigits(value).slice(0, 11);
+
+  if (d.startsWith("02")) {
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return `${d.slice(0, 2)}-${d.slice(2)}`;
+    if (d.length <= 9) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+    return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
 
 export default function ConfirmCustomerPage() {
   const location = useLocation();
@@ -23,6 +60,7 @@ export default function ConfirmCustomerPage() {
     phone: "",
     address: "",
     bank: "",
+    bankCustom: "",
     accountNumber: "",
     nationalityCode: "",
     nationality: "",
@@ -33,7 +71,7 @@ export default function ConfirmCustomerPage() {
   const [isEditMode, setIsEditMode] = useState(false);
 
   useEffect(() => {
-    const state = location.state as { form?: CustomerForm } | null;
+    const state = location.state as { form?: Partial<CustomerForm> } | null;
 
     if (!state?.form) {
       navigate("/step1/add-customer", { replace: true });
@@ -41,17 +79,60 @@ export default function ConfirmCustomerPage() {
     }
 
     if (baselineForm === null) {
-      setForm(state.form);
-      setBaselineForm(state.form);
+      const incoming: CustomerForm = {
+        name: state.form.name ?? "",
+        rrn: state.form.rrn ?? "",
+        phone: state.form.phone ?? "",
+        address: state.form.address ?? "",
+        bank: state.form.bank ?? "",
+        bankCustom: (state.form as any).bankCustom ?? "",
+        accountNumber: state.form.accountNumber ?? "",
+        nationalityCode: state.form.nationalityCode ?? "",
+        nationality: state.form.nationality ?? "",
+        finalFee: state.form.finalFee ?? "",
+      };
+
+      if (
+        incoming.bank &&
+        incoming.bank !== "custom" &&
+        !BANK_LIST.includes(incoming.bank as any)
+      ) {
+        incoming.bankCustom = incoming.bank;
+        incoming.bank = "custom";
+      }
+
+      setForm(incoming);
+      setBaselineForm(incoming);
     }
   }, [location.state, navigate, baselineForm]);
+
+  const readonlyProps = (field: "input" | "select") => {
+    if (field === "select") return { disabled: !isEditMode };
+    return { readOnly: !isEditMode };
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+
+    if (name === "rrn") {
+      setForm((prev) => ({ ...prev, rrn: formatRRN(value) }));
+      return;
+    }
+    if (name === "phone") {
+      setForm((prev) => ({ ...prev, phone: formatPhone(value) }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
+
+  const isEditValid = useMemo(() => {
+    if (!isEditMode) return true;
+    if (form.bank === "custom") return form.bankCustom.trim() !== "";
+    return true;
+  }, [isEditMode, form.bank, form.bankCustom]);
 
   const handleLeftButton = () => {
     if (!isEditMode) {
@@ -65,11 +146,20 @@ export default function ConfirmCustomerPage() {
 
   const handleRightButton = () => {
     if (!isEditMode) {
-      console.log("최종 제출:", form);
-      navigate("/step1/period", { replace: true });
+      const finalBank = form.bank === "custom" ? form.bankCustom : form.bank;
+
+      const finalForm: CustomerForm = {
+        ...form,
+        bank: finalBank,
+        bankCustom: "",
+      };
+
+      console.log("최종 제출:", finalForm);
+      navigate("/step1/period", { replace: true, state: { form: finalForm } });
       return;
     }
 
+    if (!isEditValid) return;
     setBaselineForm(form);
     setIsEditMode(false);
   };
@@ -80,11 +170,6 @@ export default function ConfirmCustomerPage() {
     "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm outline-none focus:ring-1 focus:ring-gray-300";
   const selectFixed =
     "h-[48px] rounded-lg border bg-[#FAFAFA] px-3 text-sm text-gray-700 outline-none focus:ring-1 focus:ring-gray-300";
-
-  const readonlyProps = (field: "input" | "select") => {
-    if (field === "select") return { disabled: !isEditMode };
-    return { readOnly: !isEditMode };
-  };
 
   return (
     <div className="w-full">
@@ -115,6 +200,8 @@ export default function ConfirmCustomerPage() {
                 name="rrn"
                 value={form.rrn}
                 onChange={handleChange}
+                placeholder="######-#######"
+                inputMode="numeric"
                 className={`${inputFixed} w-[320px]`}
                 {...readonlyProps("input")}
               />
@@ -123,13 +210,13 @@ export default function ConfirmCustomerPage() {
 
           {/* 전화번호 */}
           <div>
-            <label className="mb-2 block text-base text-gray-600">
-              전화번호
-            </label>
+            <label className="mb-2 block text-base text-gray-600">전화번호</label>
             <input
               name="phone"
               value={form.phone}
               onChange={handleChange}
+              placeholder="010-1234-5678"
+              inputMode="numeric"
               className={inputBase}
               {...readonlyProps("input")}
             />
@@ -151,25 +238,65 @@ export default function ConfirmCustomerPage() {
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
+
               <select
                 name="bank"
                 value={form.bank}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => {
+                    if (value === "custom") {
+                      return {
+                        ...prev,
+                        bank: "custom",
+                        bankCustom: prev.bankCustom.trim()
+                          ? prev.bankCustom
+                          : prev.bank && prev.bank !== "custom"
+                          ? prev.bank
+                          : "",
+                      };
+                    }
+
+                    return {
+                      ...prev,
+                      bank: value,
+                      bankCustom: "",
+                    };
+                  });
+                }}
                 className={`${selectFixed} w-[176px]`}
-                {...readonlyProps("select")}
+                disabled={!isEditMode}
               >
                 <option value="" disabled>
                   선택
                 </option>
-                <option value="kb">KB국민</option>
-                <option value="sh">신한</option>
-                <option value="wr">우리</option>
-                <option value="hn">하나</option>
-                <option value="nh">NH농협</option>
-                <option value="ibk">IBK기업</option>
-                <option value="kakao">카카오뱅크</option>
-                <option value="toss">토스뱅크</option>
+                {BANK_LIST.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+                <option value="custom">직접 입력</option>
               </select>
+
+              {form.bank === "custom" && (
+                <input
+                  name="bankCustom"
+                  type="text"
+                  value={form.bankCustom}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      bank: "custom",
+                      bankCustom: v,
+                    }));
+                  }}
+                  placeholder="은행명을 입력하세요"
+                  className={`${inputFixed} w-[176px] mt-2`}
+                  disabled={!isEditMode}
+                />
+              )}
             </div>
 
             <div>
@@ -181,6 +308,7 @@ export default function ConfirmCustomerPage() {
                 value={form.accountNumber}
                 onChange={handleChange}
                 placeholder="'-' 제외 입력"
+                inputMode="numeric"
                 className={`${inputFixed} w-[320px] text-gray-700`}
                 {...readonlyProps("input")}
               />
@@ -217,9 +345,7 @@ export default function ConfirmCustomerPage() {
           {/* 최종 수수료 */}
           <div className="flex justify-end">
             <div className="flex flex-col">
-              <label className="mb-2 text-base text-gray-600">
-                최종 수수료
-              </label>
+              <label className="mb-2 text-base text-gray-600">최종 수수료</label>
               <input
                 name="finalFee"
                 value={form.finalFee}
@@ -238,13 +364,19 @@ export default function ConfirmCustomerPage() {
                 onClick={handleLeftButton}
                 className="h-[48px] w-[181px] rounded-lg border border-gray-200 bg-white text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50"
               >
-                {isEditMode ? "취소" : "정보 수정"}
+                {isEditMode ? "취소" : "정보수정"}
               </button>
 
               <button
                 type="button"
                 onClick={handleRightButton}
-                className="h-[48px] w-[181px] rounded-lg border border-[#64A5FF] bg-white text-base font-medium text-[#64A5FF] shadow-sm hover:bg-[#64A5FF]/10"
+                disabled={isEditMode && !isEditValid}
+                className={[
+                  "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
+                  isEditMode && !isEditValid
+                    ? "border-gray-200 text-gray-400 cursor-not-allowed"
+                    : "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10",
+                ].join(" ")}
               >
                 {isEditMode ? "수정완료" : "입력완료"}
               </button>

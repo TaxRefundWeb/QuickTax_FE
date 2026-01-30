@@ -6,12 +6,40 @@ type CustomerForm = {
   rrn: string;
   phone: string;
   address: string;
+
   bank: string;
+  bankCustom: string;
+
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
   finalFee: string;
 };
+
+function onlyDigits(v: string) {
+  return v.replace(/\D/g, "");
+}
+
+function formatRRN(value: string) {
+  const digits = onlyDigits(value).slice(0, 13);
+  if (digits.length <= 6) return digits;
+  return `${digits.slice(0, 6)}-${digits.slice(6)}`;
+}
+
+function formatPhone(value: string) {
+  const d = onlyDigits(value).slice(0, 11);
+
+  if (d.startsWith("02")) {
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return `${d.slice(0, 2)}-${d.slice(2)}`;
+    if (d.length <= 9) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+    return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
 
 export default function AddCustomerPage() {
   const navigate = useNavigate();
@@ -22,6 +50,7 @@ export default function AddCustomerPage() {
     phone: "",
     address: "",
     bank: "",
+    bankCustom: "",
     accountNumber: "",
     nationalityCode: "",
     nationality: "",
@@ -32,16 +61,33 @@ export default function AddCustomerPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
+
+    if (name === "rrn") {
+      setForm((prev) => ({ ...prev, rrn: formatRRN(value) }));
+      return;
+    }
+    if (name === "phone") {
+      setForm((prev) => ({ ...prev, phone: formatPhone(value) }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 다 입력해야 입력완료 버튼 눌리게
   const isValid = useMemo(() => {
-    return Object.values(form).every((v) => v.trim() !== "");
+    const baseValid = Object.entries(form).every(([key, value]) => {
+      if (key === "bankCustom") return true;
+      return value.trim() !== "";
+    });
+
+    if (!baseValid) return false;
+    if (form.bank === "custom") return form.bankCustom.trim() !== "";
+    return true;
   }, [form]);
 
   const handleSubmit = () => {
     if (!isValid) return;
+
     navigate("/step1/confirm", { state: { form } });
   };
 
@@ -84,6 +130,7 @@ export default function AddCustomerPage() {
                 type="text"
                 value={form.rrn}
                 onChange={handleChange}
+                inputMode="numeric"
                 className={`${inputFixed} w-[320px]`}
               />
             </div>
@@ -91,14 +138,13 @@ export default function AddCustomerPage() {
 
           {/* 전화번호 */}
           <div>
-            <label className="mb-2 block text-base text-gray-600">
-              전화번호
-            </label>
+            <label className="mb-2 block text-base text-gray-600">전화번호</label>
             <input
               name="phone"
               type="text"
               value={form.phone}
               onChange={handleChange}
+              inputMode="numeric"
               className={inputBase}
             />
           </div>
@@ -119,24 +165,66 @@ export default function AddCustomerPage() {
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
+
               <select
                 name="bank"
                 value={form.bank}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm((prev) => {
+                    if (value === "custom") {
+                      return {
+                        ...prev,
+                        bank: "custom",
+                        bankCustom: prev.bankCustom.trim()
+                          ? prev.bankCustom
+                          : prev.bank && prev.bank !== "custom"
+                          ? prev.bank
+                          : "",
+                      };
+                    }
+
+                    return {
+                      ...prev,
+                      bank: value,
+                      bankCustom: "",
+                    };
+                  });
+                }}
                 className={`${selectFixed} w-[176px]`}
               >
                 <option value="" disabled>
                   선택
                 </option>
-                <option value="kb">KB국민</option>
-                <option value="sh">신한</option>
-                <option value="wr">우리</option>
-                <option value="hn">하나</option>
-                <option value="nh">NH농협</option>
-                <option value="ibk">IBK기업</option>
-                <option value="kakao">카카오뱅크</option>
-                <option value="toss">토스뱅크</option>
+                <option value="KB국민">KB국민</option>
+                <option value="신한">신한</option>
+                <option value="우리">우리</option>
+                <option value="하나">하나</option>
+                <option value="NH농협">NH농협</option>
+                <option value="IBK기업">IBK기업</option>
+                <option value="카카오뱅크">카카오뱅크</option>
+                <option value="토스뱅크">토스뱅크</option>
+                <option value="custom">직접 입력</option>
               </select>
+
+              {form.bank === "custom" && (
+                <input
+                  name="bankCustom"
+                  type="text"
+                  value={form.bankCustom}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      bank: "custom",
+                      bankCustom: v,
+                    }));
+                  }}
+                  placeholder="은행명을 입력하세요"
+                  className={`${inputFixed} w-[176px] mt-2`}
+                />
+              )}
             </div>
 
             <div>
@@ -149,6 +237,7 @@ export default function AddCustomerPage() {
                 value={form.accountNumber}
                 onChange={handleChange}
                 placeholder="'-' 제외 입력"
+                inputMode="numeric"
                 className={`${inputFixed} w-[320px] text-gray-700`}
               />
             </div>
@@ -157,9 +246,7 @@ export default function AddCustomerPage() {
           {/* 국적코드 / 국적 */}
           <div className="flex justify-between">
             <div>
-              <label className="mb-2 block text-base text-gray-600">
-                국적코드
-              </label>
+              <label className="mb-2 block text-base text-gray-600">국적코드</label>
               <input
                 name="nationalityCode"
                 type="text"

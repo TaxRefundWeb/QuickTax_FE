@@ -49,7 +49,7 @@ function RadioDropdown({
   return (
     <div ref={wrapRef} className="relative">
       {label !== "" && (
-        <label className="mb-2 block text-[16px] text-gray-600">{label}</label>
+        <label className="mb-2 block text-[16px] text-gray-500">{label}</label>
       )}
 
       <button
@@ -155,14 +155,14 @@ const emptyWorkPlace = (): WorkPlace => ({
   bizNo: "",
 });
 
-/** ✅ 자녀(배열) */
+/** 자녀(배열) */
 type ChildInfo = {
   name: string;
   rrn: string;
 };
 const emptyChild = (): ChildInfo => ({ name: "", rrn: "" });
 
-/** ✅ 연도별 폼 */
+/** 연도별 폼 */
 type YearForm = {
   workplaces: WorkPlace[];
 
@@ -199,20 +199,38 @@ function isYearFormValid(f: YearForm) {
   const allWorkplacesValid =
     f.workplaces.length > 0 &&
     f.workplaces.every(
-      (w) => w.corpName.trim() && w.bizNo.trim() && w.workStart && w.workEnd
+      (w) =>
+        w.corpName.trim() &&
+        w.bizNo.trim() &&
+        w.workStart &&
+        w.workEnd &&
+        w.sme
     );
-
-  const spouseValid =
+    
+  const reduceValid = Boolean(f.reduceStart && f.reduceEnd);
+  const docValid = Boolean(f.docDate);
+  const spouseChoiceValid = f.spouse === "yes" || f.spouse === "no";
+  const childChoiceValid = f.child === "yes" || f.child === "no";
+  const spouseDetailValid =
     f.spouse !== "yes" ||
     (f.spouseName.trim().length > 0 && f.spouseRrn.trim().length > 0);
 
-  const childrenValid =
+  const childrenDetailValid =
     f.child !== "yes" ||
     (f.children.length > 0 &&
       f.children.every((c) => c.name.trim() && c.rrn.trim()));
 
-  return Boolean(allWorkplacesValid && spouseValid && childrenValid);
+  return Boolean(
+    allWorkplacesValid &&
+      reduceValid &&
+      docValid &&
+      spouseChoiceValid &&
+      childChoiceValid &&
+      spouseDetailValid &&
+      childrenDetailValid
+  );
 }
+
 
 export default function ExistingCustomerPage() {
   const navigate = useNavigate();

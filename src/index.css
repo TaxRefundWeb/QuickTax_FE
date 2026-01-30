@@ -24,4 +24,5 @@ body,
 body {
   margin: 0;
   display: block;
+  font-weight: 600;
 }

@@ -169,7 +169,7 @@ export default function HistoryModal({
             </section>
 
             {/* 우측부 */}
-            <section className="col-start-5 flex items-start justify-end">
+            <section className="col-start-5 flex flex-col items-end gap-3">
               <button
                 type="button"
                 onClick={handleDownloadZip}
@@ -182,6 +182,19 @@ export default function HistoryModal({
                 ].join(" ")}
               >
                 zip 파일 다운로드
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadZip}
+                disabled={zipDisabled}
+                className={[
+                  "h-[40px] w-[138px] rounded-[4px] border px-3 text-[12px] transition-colors",
+                  zipDisabled
+                    ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                    : "border-gray-200 bg-white text-gray-900 hover:bg-gray-50",
+                ].join(" ")}
+              >
+                PDF 다운로드
               </button>
             </section>
           </div>

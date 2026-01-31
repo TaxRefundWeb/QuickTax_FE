@@ -179,7 +179,6 @@ export default function OcrComparePage() {
 
   const currentPdfUrl = pdfUrlByYear[activeYear] ?? "";
 
-  // ✅ "계산하기" 눌렀을 때 Step3로 이동
   const handleGoToStep3 = () => {
     // 필요하면 여기서 "activeYear에 PDF가 업로드 되었는지" 체크도 가능
     // if (!filesByYear[activeYear]) { alert("먼저 PDF를 업로드해 주세요!"); return; }
@@ -238,7 +237,7 @@ export default function OcrComparePage() {
                   </>
                 ) : (
                   <>
-                    <div className="text-[13px] font-medium text-gray-700">
+                    <div className="text-[13px] text-gray-700">
                       파일 불러오기
                     </div>
                     <div className="mt-1 text-[12px] text-gray-400">
@@ -251,7 +250,7 @@ export default function OcrComparePage() {
 
             {/* 연도 탭 */}
             <div className="rounded-[8px] border border-gray-200 bg-white p-4">
-              <p className="mb-3 text-[12px] font-medium text-gray-700">
+              <p className="mb-3 text-[12px] text-gray-700">
                 년도별 인식 결과
               </p>
 
@@ -436,7 +435,7 @@ export default function OcrComparePage() {
               </div>
             </div>
 
-            {/* ✅ 우측 OCR 결과 (계산하기 버튼 연결) */}
+            {/* 우측 OCR 결과 (계산하기 버튼 연결) */}
             <OcrFixedPanel
               activeYear={activeYear}
               onCalculate={handleGoToStep3}
@@ -500,7 +499,7 @@ function OcrFixedPanel({
       <div className={`w-[${PANEL_W}px]`}>
         <div className="pt-6 pl-[40px]">
           <div className="mb-2 flex items-center gap-2">
-            <p className="text-[18px] font-semibold text-gray-800">
+            <p className="text-[18px] text-gray-800">
               OCR 인식 결과
             </p>
             <span className="text-[12px] text-gray-400">ⓘ</span>
@@ -516,7 +515,7 @@ function OcrFixedPanel({
           <div className="bg-[#F3F8FF] px-6 py-5 min-h-full">
             {OCR_SECTIONS.map((sec, idx) => (
               <div key={sec.title}>
-                <h2 className="mb-4 text-[16px] font-semibold text-gray-800">
+                <h2 className="mb-4 text-[16px] text-gray-800">
                   {sec.title}
                 </h2>
 
@@ -561,7 +560,7 @@ function OcrFixedPanel({
 function OcrFixedRow({ row }: { row: OcrRow }) {
   return (
     <div className="grid grid-cols-[1fr_220px] items-center gap-3">
-      <span className="font-inter text-[16px] font-medium text-[#6D6D6D] leading-normal">
+      <span className="font-inter text-[16px] text-[#6D6D6D] leading-normal">
         {row.label}
       </span>
 

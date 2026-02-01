@@ -119,7 +119,7 @@ export default function CalculationCompare({ customerId, year }: Props) {
     });
   }, [years, bestPlanId]);
 
-  // 2) 탭(연도) 바꿨을 때도 혹시 값이 없으면 best로 채움 (안전장치)
+  // 2) 탭(연도) 바꿨을 때도 혹시 값이 없으면 best로 채움
   useEffect(() => {
     if (activeYear === null || !bestPlanId) return;
     setPickedPlanIdByYear((prev) => {

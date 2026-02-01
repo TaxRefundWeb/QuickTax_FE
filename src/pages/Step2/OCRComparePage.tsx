@@ -543,7 +543,7 @@ function OcrFixedPanel({
             수정하기
           </button>
 
-          {/* 여기! onClick만 연결 */}
+          {/* onClick만 연결 */}
           <button
             type="button"
             onClick={onCalculate}

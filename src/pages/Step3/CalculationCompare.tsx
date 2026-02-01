@@ -246,7 +246,7 @@ export default function CalculationCompare({ customerId, year }: Props) {
             </div>
           </div>
 
-          {/* 선택 완료 버튼: 컨테이너 밖(아래) */}
+          {/* 선택 완료 버튼 */}
           <div className="mt-8 mb-8 flex justify-end">
             <button
               type="button"

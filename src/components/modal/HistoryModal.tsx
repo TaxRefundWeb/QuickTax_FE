@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Customer } from "../../data/customersDummy";
+import type { Customer } from "../../lib/api/customers";
+import { getCustomerCases } from "../../lib/api/customers";
+
+type CaseItem = {
+  year?: number;            // 백 필드명이 다를 수 있어서 optional
+  taxYear?: number;
+  filedAt?: string;
+  taxMethod?: string;
+  refundAmount?: number;
+  // 필요하면 추가
+  [key: string]: any;
+};
 
 type HistoryModalProps = {
   isOpen: boolean;
@@ -11,6 +22,16 @@ type HistoryModalProps = {
   onStartNew?: () => void;
 };
 
+function pickYear(item: CaseItem): number | null {
+  // 가능한 필드들에서 year 추출
+  const y =
+    (typeof item.year === "number" && item.year) ||
+    (typeof item.taxYear === "number" && item.taxYear) ||
+    null;
+
+  return y;
+}
+
 export default function HistoryModal({
   isOpen,
   onClose,
@@ -18,30 +39,63 @@ export default function HistoryModal({
   onDownloadZip,
   onStartNew,
 }: HistoryModalProps) {
-  const years = useMemo(() => {
-    if (!customer) return [];
-    return Array.from(new Set(customer.records.map((r) => r.year))).sort(
-      (a, b) => b - a
-    );
-  }, [customer]);
+  const [cases, setCases] = useState<CaseItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const [pickedYear, setPickedYear] = useState<number | null>(null);
 
+  // ✅ 모달 열리고 customer가 있으면 cases 불러오기
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!customer) return;
+
+    (async () => {
+      try {
+        setLoading(true);
+
+        const res = await getCustomerCases(customer.customerId);
+        const list = (res as any)?.data ?? res; // ApiResponse 대응
+
+        setCases(Array.isArray(list) ? list : []);
+      } catch (e) {
+        console.error(e);
+        setCases([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [isOpen, customer?.customerId]);
+
+  // ✅ customer 바뀌면 선택 연도 초기화
   useEffect(() => {
     setPickedYear(null);
-  }, [customer?.id]);
+  }, [customer?.customerId]);
+
+  // ✅ cases에서 year 목록 만들기
+  const years = useMemo(() => {
+    const ys = cases
+      .map(pickYear)
+      .filter((y): y is number => typeof y === "number");
+    return Array.from(new Set(ys)).sort((a, b) => b - a);
+  }, [cases]);
 
   const selectedYear = pickedYear ?? (years[0] ?? null);
 
+  // ✅ 선택 연도의 record(케이스) 하나 고르기
   const record = useMemo(() => {
-    if (!customer || selectedYear === null) return null;
-    return customer.records.find((r) => r.year === selectedYear) ?? null;
-  }, [customer, selectedYear]);
+    if (selectedYear === null) return null;
+
+    // year/taxYear 중 하나가 맞는 케이스를 찾아줌
+    return (
+      cases.find((c) => pickYear(c) === selectedYear) ??
+      null
+    );
+  }, [cases, selectedYear]);
 
   const handleDownloadZip = () => {
     if (!customer || selectedYear === null) return;
-    if (onDownloadZip) return onDownloadZip(customer.id, selectedYear);
-    console.log("zip 다운로드(임시):", customer.id, selectedYear);
+    if (onDownloadZip) return onDownloadZip(customer.customerId, selectedYear);
+    console.log("zip 다운로드(임시):", customer.customerId, selectedYear);
   };
 
   if (!isOpen) return null;
@@ -67,21 +121,8 @@ export default function HistoryModal({
           </h2>
         </div>
 
-        <div
-          className="
-            absolute
-            left-0
-            right-0
-            top-[178px]
-            px-[95px]
-          "
-        >
-          <div
-            className="
-              grid
-              grid-cols-[141px_24px_592px_19px_138px]
-            "
-          >
+        <div className="absolute left-0 right-0 top-[178px] px-[95px]">
+          <div className="grid grid-cols-[141px_24px_592px_19px_138px]">
             {/* 좌측부 */}
             <section className="col-start-1 relative">
               <div className="absolute -top-[30px] left-[10px] text-[12px] text-gray-500">
@@ -93,9 +134,13 @@ export default function HistoryModal({
                   <div className="p-4 text-[14px] text-gray-500">
                     선택된 고객이 없습니다.
                   </div>
+                ) : loading ? (
+                  <div className="p-4 text-[14px] text-gray-500">
+                    불러오는 중...
+                  </div>
                 ) : years.length === 0 ? (
-                  <div className="p-4 text-[20px] text-gray-500">
-                    
+                  <div className="p-4 text-[14px] text-gray-500">
+                    기록이 없습니다.
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-[10px]">
@@ -133,6 +178,10 @@ export default function HistoryModal({
                   <div className="p-2 text-[12px] text-gray-500">
                     선택된 고객이 없습니다.
                   </div>
+                ) : loading ? (
+                  <div className="p-2 text-[12px] text-gray-500">
+                    불러오는 중...
+                  </div>
                 ) : !record ? (
                   <div className="p-2 text-[20px] text-gray-500">
                     기록이 없습니다.
@@ -146,22 +195,22 @@ export default function HistoryModal({
 
                     <div className="text-[16px] text-gray-500">주민등록번호</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {customer.rrn}
+                      {customer.rrn ?? "-"}
                     </div>
 
                     <div className="text-[16px] text-gray-500">세금 계산 방식</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {record.taxMethod}
+                      {record.taxMethod ?? "-"}
                     </div>
 
                     <div className="text-[16px] text-gray-500">환급금 금액</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {record.refundAmount.toLocaleString()}원
+                      {(record.refundAmount ?? 0).toLocaleString()}원
                     </div>
 
                     <div className="text-[16px] text-gray-500">경정청구 처리 일자</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {record.filedAt}
+                      {record.filedAt ?? "-"}
                     </div>
                   </div>
                 )}

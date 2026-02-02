@@ -1,22 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./LoginModal.module.css";
 
-// 더미데이터 import
-import {
-  customersDummy,
-  filterCustomers,
-  type Customer,
-} from "../../data/customersDummy";
+// ✅ 실 API
+import { getCustomers, type Customer as ApiCustomer } from "../../lib/api/customers";
+
+// ✅ 기존 더미의 검색함수는 “그대로 재사용” 가능 (단, 필드명 맞춰야 함)
+import { filterCustomers } from "../../data/customersDummy";
+
+type UiCustomer = {
+  id: string;        // UI가 쓰는 key
+  name: string;
+  birthDate?: string; // 있으면 표시
+  rrn?: string;
+};
 
 type LoginModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddCustomer: () => void;
 
-  // 선택된 고객을 부모(Login.tsx)로 전달
-  onOpenStartModal: (customer: Customer) => void;
+  // 부모에 넘길 타입: 지금은 UI에서 쓰는 형태로 넘겨도 되고,
+  // 원하면 ApiCustomer 그대로 넘기도록 바꿔도 됨.
+  onOpenStartModal: (customer: UiCustomer) => void;
 
-  // 추가: 밖 클릭/ESC로 닫을지 여부
   closeOnBackdropClick?: boolean;
   closeOnEsc?: boolean;
 };
@@ -26,16 +32,56 @@ export default function LoginModal({
   onClose,
   onAddCustomer,
   onOpenStartModal,
-  closeOnBackdropClick = false, // 기본: 밖 클릭으로 닫지 않음
-  closeOnEsc = false,           // 기본: ESC로 닫지 않음
+  closeOnBackdropClick = false,
+  closeOnEsc = false,
 }: LoginModalProps) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  const [customers, setCustomers] = useState<UiCustomer[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ✅ 모달 열릴 때 고객 목록 불러오기
+  useEffect(() => {
+    if (!isOpen) return;
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await getCustomers();
+        // 백이 ApiResponse<T>면 res.data일 수도 있어서 둘 다 대응
+        const list: ApiCustomer[] = (res as any)?.data ?? res;
+
+        const mapped: UiCustomer[] = Array.isArray(list)
+          ? list.map((c) => ({
+              id: c.customerId, // ✅ 핵심: customerId -> id로 매핑
+              name: c.name,
+              rrn: c.rrn,
+              // birthDate는 백에서 내려오면 여기서 매핑하면 됨
+              // birthDate: (c as any).birthDate,
+            }))
+          : [];
+
+        setCustomers(mapped);
+      } catch (e) {
+        console.error(e);
+        setError("고객 목록을 불러오지 못했습니다.");
+        setCustomers([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [isOpen]);
+
   // 검색 결과
   const filteredCustomers = useMemo(() => {
-    return filterCustomers(customersDummy, query);
-  }, [query]);
+    // filterCustomers가 birthDate/rrn까지 검색한다면
+    // 위 mapped에서 해당 필드도 맞춰주면 됨
+    return filterCustomers(customers as any, query);
+  }, [customers, query]);
 
   const selectedCustomer = useMemo(() => {
     return filteredCustomers.find((c) => c.id === selectedId) ?? null;
@@ -59,7 +105,7 @@ export default function LoginModal({
     };
   }, [isOpen, onClose, closeOnEsc]);
 
-  // 모달 "닫힐 때" 선택/검색 초기화
+  // 모달 닫힐 때 초기화
   useEffect(() => {
     if (isOpen) return;
     setQuery("");
@@ -95,8 +141,7 @@ export default function LoginModal({
         <div className={styles.header}>
           <div className={styles.headerInner}>
             <h2 className={styles.headTitle}>
-              <span className={styles.accent}>경정청구</span>를 진행할 고객을
-              선택하세요
+              <span className={styles.accent}>경정청구</span>를 진행할 고객을 선택하세요
             </h2>
           </div>
         </div>
@@ -110,12 +155,7 @@ export default function LoginModal({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <button
-              type="button"
-              className={styles.searchIcon}
-              aria-label="검색"
-              onClick={() => console.log("검색:", query)}
-            >
+            <button type="button" className={styles.searchIcon} aria-label="검색">
               🔍
             </button>
           </div>
@@ -132,19 +172,21 @@ export default function LoginModal({
           </div>
 
           <div className={styles.tableBody}>
-            {filteredCustomers.length === 0 ? (
+            {loading && <div className={styles.empty}>불러오는 중...</div>}
+            {error && <div className={styles.empty}>{error}</div>}
+
+            {!loading && !error && filteredCustomers.length === 0 ? (
               <div className={styles.empty}>검색 결과가 없습니다.</div>
             ) : (
-              filteredCustomers.map((c) => {
+              !loading &&
+              !error &&
+              filteredCustomers.map((c: UiCustomer) => {
                 const isSelected = c.id === selectedId;
 
                 return (
                   <div
                     key={c.id}
-                    className={[
-                      styles.row,
-                      isSelected ? styles.rowSelected : "",
-                    ].join(" ")}
+                    className={[styles.row, isSelected ? styles.rowSelected : ""].join(" ")}
                     onClick={() => handleRowSelect(c.id)}
                     role="button"
                     tabIndex={0}
@@ -168,10 +210,10 @@ export default function LoginModal({
                     </div>
 
                     {/* 생년월일 */}
-                    <div className={styles.cellBirth}>{c.birthDate}</div>
+                    <div className={styles.cellBirth}>{c.birthDate ?? "-"}</div>
 
                     {/* 주민번호 */}
-                    <div className={styles.cellRrn}>{c.rrn}</div>
+                    <div className={styles.cellRrn}>{c.rrn ?? "-"}</div>
 
                     {/* 우측 화살표 */}
                     <button

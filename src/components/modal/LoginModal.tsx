@@ -1,27 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./LoginModal.module.css";
 
-// ✅ 실 API
-import { getCustomers, type Customer as ApiCustomer } from "../../lib/api/customers";
-
-// ✅ 기존 더미의 검색함수는 “그대로 재사용” 가능 (단, 필드명 맞춰야 함)
-import { filterCustomers } from "../../data/customersDummy";
-
-type UiCustomer = {
-  id: string;        // UI가 쓰는 key
-  name: string;
-  birthDate?: string; // 있으면 표시
-  rrn?: string;
-};
+// 실 API
+import { getCustomers, type Customer } from "../../lib/api/customers";
 
 type LoginModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onAddCustomer: () => void;
 
-  // 부모에 넘길 타입: 지금은 UI에서 쓰는 형태로 넘겨도 되고,
-  // 원하면 ApiCustomer 그대로 넘기도록 바꿔도 됨.
-  onOpenStartModal: (customer: UiCustomer) => void;
+  // Login.tsx에서 이제 API Customer 타입을 쓰고 있으니 그대로 맞춤
+  onOpenStartModal: (customer: Customer) => void;
 
   closeOnBackdropClick?: boolean;
   closeOnEsc?: boolean;
@@ -38,11 +27,10 @@ export default function LoginModal({
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const [customers, setCustomers] = useState<UiCustomer[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ 모달 열릴 때 고객 목록 불러오기
   useEffect(() => {
     if (!isOpen) return;
 
@@ -52,20 +40,9 @@ export default function LoginModal({
         setError(null);
 
         const res = await getCustomers();
-        // 백이 ApiResponse<T>면 res.data일 수도 있어서 둘 다 대응
-        const list: ApiCustomer[] = (res as any)?.data ?? res;
+        const list = (res as any)?.data ?? res; // ApiResponse 대응
 
-        const mapped: UiCustomer[] = Array.isArray(list)
-          ? list.map((c) => ({
-              id: c.customerId, // ✅ 핵심: customerId -> id로 매핑
-              name: c.name,
-              rrn: c.rrn,
-              // birthDate는 백에서 내려오면 여기서 매핑하면 됨
-              // birthDate: (c as any).birthDate,
-            }))
-          : [];
-
-        setCustomers(mapped);
+        setCustomers(Array.isArray(list) ? list : []);
       } catch (e) {
         console.error(e);
         setError("고객 목록을 불러오지 못했습니다.");
@@ -76,18 +53,25 @@ export default function LoginModal({
     })();
   }, [isOpen]);
 
-  // 검색 결과
   const filteredCustomers = useMemo(() => {
-    // filterCustomers가 birthDate/rrn까지 검색한다면
-    // 위 mapped에서 해당 필드도 맞춰주면 됨
-    return filterCustomers(customers as any, query);
+    const q = query.trim();
+    if (!q) return customers;
+
+    return customers.filter((c) => {
+      const nameHit = c.name?.includes(q);
+      const rrnHit = (c.rrn ?? "").includes(q);
+      return nameHit || rrnHit;
+    });
   }, [customers, query]);
 
   const selectedCustomer = useMemo(() => {
-    return filteredCustomers.find((c) => c.id === selectedId) ?? null;
+    if (!selectedId) return null;
+    return filteredCustomers.find((c) => c.customerId === selectedId) ?? null;
   }, [filteredCustomers, selectedId]);
 
-  // ESC 닫기 + body 스크롤 잠금
+  /**
+   * ESC 닫기 + body 스크롤 잠금
+   */
   useEffect(() => {
     if (!isOpen) return;
 
@@ -105,11 +89,16 @@ export default function LoginModal({
     };
   }, [isOpen, onClose, closeOnEsc]);
 
-  // 모달 닫힐 때 초기화
+  /**
+   * 모달 닫힐 때 초기화
+   */
   useEffect(() => {
     if (isOpen) return;
     setQuery("");
     setSelectedId(null);
+    setCustomers([]);
+    setLoading(false);
+    setError(null);
   }, [isOpen]);
 
   const handleRowSelect = (customerId: string) => {
@@ -141,7 +130,8 @@ export default function LoginModal({
         <div className={styles.header}>
           <div className={styles.headerInner}>
             <h2 className={styles.headTitle}>
-              <span className={styles.accent}>경정청구</span>를 진행할 고객을 선택하세요
+              <span className={styles.accent}>경정청구</span>를 진행할 고객을
+              선택하세요
             </h2>
           </div>
         </div>
@@ -151,7 +141,7 @@ export default function LoginModal({
           <div className={styles.searchBox}>
             <input
               className={styles.searchInput}
-              placeholder="고객명 또는 생년월일로 검색"
+              placeholder="고객명 또는 주민번호로 검색"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -173,6 +163,7 @@ export default function LoginModal({
 
           <div className={styles.tableBody}>
             {loading && <div className={styles.empty}>불러오는 중...</div>}
+
             {error && <div className={styles.empty}>{error}</div>}
 
             {!loading && !error && filteredCustomers.length === 0 ? (
@@ -180,14 +171,17 @@ export default function LoginModal({
             ) : (
               !loading &&
               !error &&
-              filteredCustomers.map((c: UiCustomer) => {
-                const isSelected = c.id === selectedId;
+              filteredCustomers.map((c) => {
+                const isSelected = c.customerId === selectedId;
 
                 return (
                   <div
-                    key={c.id}
-                    className={[styles.row, isSelected ? styles.rowSelected : ""].join(" ")}
-                    onClick={() => handleRowSelect(c.id)}
+                    key={c.customerId}
+                    className={[
+                      styles.row,
+                      isSelected ? styles.rowSelected : "",
+                    ].join(" ")}
+                    onClick={() => handleRowSelect(c.customerId)}
                     role="button"
                     tabIndex={0}
                   >
@@ -197,7 +191,7 @@ export default function LoginModal({
                         type="checkbox"
                         className={styles.checkbox}
                         checked={isSelected}
-                        onChange={() => handleRowSelect(c.id)}
+                        onChange={() => handleRowSelect(c.customerId)}
                         onClick={(e) => e.stopPropagation()}
                         aria-label="고객 선택"
                       />
@@ -209,8 +203,8 @@ export default function LoginModal({
                       <span className={styles.nameText}>{c.name}님</span>
                     </div>
 
-                    {/* 생년월일 */}
-                    <div className={styles.cellBirth}>{c.birthDate ?? "-"}</div>
+                    {/* 생년월일 (백에 없으면 '-'로) */}
+                    <div className={styles.cellBirth}>-</div>
 
                     {/* 주민번호 */}
                     <div className={styles.cellRrn}>{c.rrn ?? "-"}</div>

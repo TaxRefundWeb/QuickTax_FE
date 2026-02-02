@@ -5,8 +5,7 @@ import LoginModal from "../../components/modal/LoginModal";
 import StartModal from "../../components/modal/StartModal";
 import HistoryModal from "../../components/modal/HistoryModal";
 
-// 선택 고객 타입 import
-import type { Customer } from "../../data/customersDummy";
+import type { Customer } from "../../lib/api/customers";
 
 // 로그인 API
 import { login } from "../../lib/api/auth";

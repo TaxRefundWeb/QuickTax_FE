@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { createCustomerCase } from "../../lib/api/customers";
+import { refundSelection } from "../../lib/api/refund";
 
 type Year = string;
 
@@ -143,10 +143,9 @@ export default function SelectPeriod() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // customerId 없이 들어오면 튕기기(안전장치)
+  // ✅ customerId 없이 들어오면 튕기기(안전장치)
   useEffect(() => {
     if (typeof customerId === "number") return;
-    // Login/History/Start 흐름을 거치지 않고 직접 URL로 들어온 케이스
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 
@@ -162,20 +161,27 @@ export default function SelectPeriod() {
     try {
       setSubmitting(true);
 
-      // 새 경정청구 생성 (POST)
-      const res = await createCustomerCase(customerId);
+      // ✅ 기간 선택 API (POST /api/refund-selection)
+      const res = await refundSelection({
+        claim_from: startYear,
+        claim_to: endYear,
+      });
 
-      // 응답에서 caseId 추출(백 필드명 확정되면 하나로 고정해도 됨)
-      const caseId =
-        res?.result?.caseId ?? res?.result?.case_id ?? res?.result?.id ?? null;
-
-      // 다음 단계로 이동
+      // ✅ 다음 단계로 이동 (응답 result도 같이 넘기기)
       navigate("/step1/existing", {
-        state: { customerId, caseId, startYear, endYear, claimDate },
+        state: {
+          customerId,
+          startYear,
+          endYear,
+          claimDate,
+          refundSelectionResult: res?.result ?? null,
+        },
       });
     } catch (e) {
       console.error(e);
-      alert("경정청구 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      alert(
+        "기간 선택 요청(refund-selection)에 실패했습니다. 잠시 후 다시 시도해주세요."
+      );
     } finally {
       setSubmitting(false);
     }

@@ -32,7 +32,7 @@ export async function getCustomers() {
 
 /**
  * 신규 고객 등록
- * POST /api/customers/new
+ * POST /api/customers/new  (※ 실제 호출은 /customers 로 되어 있음)
  */
 export async function createCustomer(body: CreateCustomerRequest) {
   const res = await api.post("/customers", body);
@@ -68,13 +68,3 @@ export async function getCustomerPast(customerId: number) {
   const res = await api.get(`/customers/${customerId}/past`);
   return res.data;
 }
-
-/**
- * 고객 새 경정청구 생성
- * POST /api/customers/{customerId}/cases
- */
-export async function createCustomerCase(customerId: number) {
-  const res = await api.post(`/customers/${customerId}/cases`);
-  return res.data;
-}
-

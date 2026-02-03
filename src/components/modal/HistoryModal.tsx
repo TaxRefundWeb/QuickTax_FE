@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Customer } from "../../lib/api/customers";
-import { getCustomerCases } from "../../lib/api/customers";
+import { getCustomerPast } from "../../lib/api/customers";
 
 type CaseItem = {
   year?: number; // 백 필드명이 다를 수 있어서 optional
@@ -76,7 +76,7 @@ export default function HistoryModal({
       try {
         setLoading(true);
 
-        const res = await getCustomerCases(customerId);
+        const res = await getCustomerPast(customerId);
         const list = normalizeList(res);
 
         if (!alive) return;

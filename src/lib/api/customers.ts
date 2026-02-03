@@ -68,3 +68,13 @@ export async function getCustomerPast(customerId: number) {
   const res = await api.get(`/customers/${customerId}/past`);
   return res.data;
 }
+
+/**
+ * 고객 새 경정청구 생성
+ * POST /api/customers/{customerId}/cases
+ */
+export async function createCustomerCase(customerId: number) {
+  const res = await api.post(`/customers/${customerId}/cases`);
+  return res.data;
+}
+

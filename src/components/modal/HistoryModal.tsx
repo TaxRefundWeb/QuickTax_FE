@@ -49,6 +49,7 @@ export default function HistoryModal({
   isOpen,
   onClose,
   customer,
+  onStartNew,
 }: HistoryModalProps) {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +58,7 @@ export default function HistoryModal({
 
   const customerId = customer?.customerId ?? null;
 
-  // ✅ 모달 닫히면 상태 초기화(잔상 방지)
+  // 모달 닫히면 상태 초기화(잔상 방지)
   useEffect(() => {
     if (isOpen) return;
     setCases([]);
@@ -65,7 +66,7 @@ export default function HistoryModal({
     setLoading(false);
   }, [isOpen]);
 
-  // ✅ 모달 열리고 customer가 있으면 cases 불러오기
+  // 모달 열리고 customer가 있으면 cases 불러오기
   useEffect(() => {
     if (!isOpen) return;
     if (typeof customerId !== "number") return;
@@ -96,12 +97,12 @@ export default function HistoryModal({
     };
   }, [isOpen, customerId]);
 
-  // ✅ customer 바뀌면 선택 연도 초기화
+  // customer 바뀌면 선택 연도 초기화
   useEffect(() => {
     setPickedYear(null);
   }, [customerId]);
 
-  // ✅ cases에서 year 목록 만들기
+  // cases에서 year 목록 만들기
   const years = useMemo(() => {
     const ys = cases
       .map(pickYear)
@@ -111,13 +112,13 @@ export default function HistoryModal({
 
   const selectedYear = pickedYear ?? (years[0] ?? null);
 
-  // ✅ 선택 연도의 record(케이스) 하나 고르기
+  // 선택 연도의 record(케이스) 하나 고르기
   const record = useMemo(() => {
     if (selectedYear === null) return null;
     return cases.find((c) => pickYear(c) === selectedYear) ?? null;
   }, [cases, selectedYear]);
 
-  // ✅ 버튼은 "UI만" (나중에 기능 추가)
+  // 버튼은 "UI만" (나중에 기능 추가)
   const handleZipClick = () => {
     console.log("zip 다운로드(추후 연결):", customerId, selectedYear);
   };
@@ -127,8 +128,10 @@ export default function HistoryModal({
   };
 
   const handleStartNew = () => {
-    console.log("새 경정청구 신청(추후 연결):", customerId);
+    if (!customerId) return;
+    onStartNew?.();
   };
+
 
   if (!isOpen) return null;
 

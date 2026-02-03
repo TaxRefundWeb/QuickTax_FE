@@ -146,8 +146,12 @@ export default function Login() {
         onClose={handleCloseHistoryModal}
         customer={selectedCustomer}
         onStartNew={() => {
+          if (!selectedCustomer) return;
+
           setIsHistoryModalOpen(false);
-          navigate("/step1/period");
+          navigate("/step1/period", {
+            state: { customerId: selectedCustomer.customerId },
+          });
         }}
       />
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { createCustomerCase } from "../../lib/api/customers";
 
 type Year = string;
 
@@ -124,8 +125,14 @@ function YearRadioDropdown({
   );
 }
 
+type PeriodNavState = { customerId?: number };
+
 export default function SelectPeriod() {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const customerId =
+    (location.state as PeriodNavState | null)?.customerId ?? null;
 
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
@@ -134,14 +141,44 @@ export default function SelectPeriod() {
     new Date().toISOString().slice(0, 10)
   );
 
+  const [submitting, setSubmitting] = useState(false);
+
+  // customerId 없이 들어오면 튕기기(안전장치)
+  useEffect(() => {
+    if (typeof customerId === "number") return;
+    // Login/History/Start 흐름을 거치지 않고 직접 URL로 들어온 케이스
+    navigate("/", { replace: true });
+  }, [customerId, navigate]);
+
   const isValid = useMemo(() => {
     if (!startYear || !endYear || !claimDate) return false;
     return Number(startYear) <= Number(endYear);
   }, [startYear, endYear, claimDate]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isValid) return;
-    navigate("/step1/existing", { state: { startYear, endYear, claimDate } });
+    if (typeof customerId !== "number") return;
+
+    try {
+      setSubmitting(true);
+
+      // 새 경정청구 생성 (POST)
+      const res = await createCustomerCase(customerId);
+
+      // 응답에서 caseId 추출(백 필드명 확정되면 하나로 고정해도 됨)
+      const caseId =
+        res?.result?.caseId ?? res?.result?.case_id ?? res?.result?.id ?? null;
+
+      // 다음 단계로 이동
+      navigate("/step1/existing", {
+        state: { customerId, caseId, startYear, endYear, claimDate },
+      });
+    } catch (e) {
+      console.error(e);
+      alert("경정청구 생성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const showYearError =
@@ -159,20 +196,16 @@ export default function SelectPeriod() {
             경정청구를 신청할 기간을 선택해 주세요 <br />
             기간을 선택하면 상세 입력창이 나타납니다.
           </p>
+
           <form onSubmit={(e) => e.preventDefault()}>
             <div className="grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
-              <label className="text-[20px] text-[#595959]">
-                경정청구 기간
-              </label>
+              <label className="text-[20px] text-[#595959]">경정청구 기간</label>
               <div />
               <div />
               <div />
-              <label className="text-[20px] text-[#595959]">
-                청구 일자
-              </label>
+              <label className="text-[20px] text-[#595959]">청구 일자</label>
               <div />
             </div>
-
 
             <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
               <YearRadioDropdown
@@ -207,15 +240,15 @@ export default function SelectPeriod() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!isValid}
+                disabled={!isValid || submitting}
                 className={[
                   "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                  isValid
+                  isValid && !submitting
                     ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
                     : "border-gray-200 text-gray-400 cursor-not-allowed",
                 ].join(" ")}
               >
-                입력완료
+                {submitting ? "처리 중..." : "입력완료"}
               </button>
             </div>
 

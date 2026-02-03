@@ -32,10 +32,10 @@ export async function getCustomers() {
 
 /**
  * 신규 고객 등록
- * POST /api/customers/new  (※ 실제 호출은 /customers 로 되어 있음)
+ * POST /api/customers/new
  */
 export async function createCustomer(body: CreateCustomerRequest) {
-  const res = await api.post("/customers", body);
+  const res = await api.post("/customers/new", body);
   return res.data;
 }
 

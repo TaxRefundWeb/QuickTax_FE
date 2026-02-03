@@ -95,15 +95,15 @@ export default function AddCustomerPage() {
       setSubmitting(true);
 
       const payload = {
-        name: form.name,
-        rrn: form.rrn,
-        phone: form.phone,
-        address: form.address,
-        bank: form.bank === "custom" ? form.bankCustom : form.bank,
-        bank_number: form.accountNumber,
-        nationality_code: form.nationalityCode,
-        nationality_name: form.nationality,
-        final_fee_percent: form.finalFee,
+        name: form.name.trim(),
+        rrn: form.rrn.replace("-", ""),              // 하이픈 제거
+        phone: form.phone.replaceAll("-", ""),       // 하이픈 제거
+        address: form.address.trim(),
+        bank: (form.bank === "custom" ? form.bankCustom : form.bank).trim(),
+        bank_number: form.accountNumber.replaceAll("-", "").trim(),
+        nationality_code: form.nationalityCode.trim(),
+        nationality_name: form.nationality.trim(),
+        final_fee_percent: form.finalFee.replace(/[^\d.]/g, "").trim(), // "2%" 같은 입력 방지
       };
 
       const res = await createCustomer(payload);

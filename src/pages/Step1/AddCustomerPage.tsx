@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { createCustomer } from "../../lib/api/customers";
 
 type CustomerForm = {
   name: string;
@@ -57,6 +58,8 @@ export default function AddCustomerPage() {
     finalFee: "",
   });
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -76,7 +79,7 @@ export default function AddCustomerPage() {
 
   const isValid = useMemo(() => {
     const baseValid = Object.entries(form).every(([key, value]) => {
-      if (key === "bankCustom") return true;
+      if (key === "bankCustom") return true; // bank가 custom일 때 아래에서 따로 체크
       return value.trim() !== "";
     });
 
@@ -85,10 +88,47 @@ export default function AddCustomerPage() {
     return true;
   }, [form]);
 
-  const handleSubmit = () => {
-    if (!isValid) return;
+  const handleSubmit = async () => {
+    if (!isValid || submitting) return;
 
-    navigate("/step1/confirm", { state: { form } });
+    try {
+      setSubmitting(true);
+
+      const payload = {
+        name: form.name,
+        rrn: form.rrn,
+        phone: form.phone,
+        address: form.address,
+        bank: form.bank === "custom" ? form.bankCustom : form.bank,
+        bank_number: form.accountNumber,
+        nationality_code: form.nationalityCode,
+        nationality_name: form.nationality,
+        final_fee_percent: form.finalFee,
+      };
+
+      const res = await createCustomer(payload);
+      console.log("createCustomer res:", res);
+
+      const customerId =
+        (res as any)?.customerId ??
+        (res as any)?.customer_id ??
+        (res as any)?.id ??
+        (res as any)?.data?.customerId ??
+        (res as any)?.data?.customer_id ??
+        null;
+
+      if (!customerId) {
+        alert("customerId를 응답에서 못 찾았어. 콘솔의 res 구조 확인 필요!");
+        return;
+      }
+
+      navigate("/step1/confirm", { state: { form, customerId } });
+    } catch (e) {
+      console.error(e);
+      alert("신규 고객 생성에 실패했어요. (콘솔 확인)");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const inputBase =
@@ -287,15 +327,15 @@ export default function AddCustomerPage() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!isValid}
+              disabled={!isValid || submitting}
               className={[
                 "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                isValid
+                isValid && !submitting
                   ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
                   : "border-gray-200 text-gray-400 cursor-not-allowed",
               ].join(" ")}
             >
-              입력완료
+              {submitting ? "저장 중..." : "입력완료"}
             </button>
           </div>
         </form>

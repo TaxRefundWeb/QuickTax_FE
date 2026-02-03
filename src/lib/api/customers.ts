@@ -10,6 +10,13 @@ export type Customer = {
 export type CreateCustomerRequest = {
   name: string;
   rrn: string;
+  phone: string;
+  address: string;
+  bank: string;
+  bank_number: string;
+  nationality_code: string;
+  nationality_name: string;
+  final_fee_percent: string;
 };
 
 export type UpdateCustomerRequest = Partial<CreateCustomerRequest>;
@@ -28,7 +35,7 @@ export async function getCustomers() {
  * POST /api/customers/new
  */
 export async function createCustomer(body: CreateCustomerRequest) {
-  const res = await api.post("/customers/new", body);
+  const res = await api.post("/customers", body);
   return res.data;
 }
 

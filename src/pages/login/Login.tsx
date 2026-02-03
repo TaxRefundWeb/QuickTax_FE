@@ -138,7 +138,7 @@ export default function Login() {
           if (!selectedCustomer) return;
 
           setIsStartModalOpen(false);
-          navigate("/step1/period", {
+          navigate("/step1/confirm", {
             state: { customerId: selectedCustomer.customerId },
           });
         }}
@@ -154,8 +154,8 @@ export default function Login() {
           if (!selectedCustomer) return;
 
           setIsHistoryModalOpen(false);
-          navigate("/step1/period", {
-            state: { customerId: selectedCustomer.customerId },
+          navigate("/step1/confirm", {
+          state: { customerId: selectedCustomer.customerId },
           });
         }}
       />

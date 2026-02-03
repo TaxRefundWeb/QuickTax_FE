@@ -2,19 +2,30 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCustomer } from "../../lib/api/customers";
 
-type CustomerForm = {
+export type CustomerForm = {
   name: string;
   rrn: string;
   phone: string;
   address: string;
-
   bank: string;
   bankCustom: string;
-
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
   finalFee: string;
+};
+
+// 백엔드 신규 고객 등록 Request Body 스펙
+type CreateCustomerRequest = {
+  name: string;
+  rrn: string;
+  phone: string;
+  address: string;
+  bank: string;
+  bank_number: string;
+  nationality_code: string;
+  nationality_name: string;
+  final_fee_percent: string;
 };
 
 function onlyDigits(v: string) {
@@ -40,6 +51,21 @@ function formatPhone(value: string) {
   if (d.length <= 3) return d;
   if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+}
+
+// UI 폼 → 백엔드 Request Body 변환
+function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
+  return {
+    name: form.name.trim(),
+    rrn: form.rrn.replace("-", ""),
+    phone: form.phone.replaceAll("-", ""),
+    address: form.address.trim(),
+    bank: (form.bank === "custom" ? form.bankCustom : form.bank).trim(),
+    bank_number: form.accountNumber.replaceAll("-", "").trim(),
+    nationality_code: form.nationalityCode.trim(),
+    nationality_name: form.nationality.trim(),
+    final_fee_percent: form.finalFee.replace(/[^\d.]/g, "").trim(), // "2%" 같은 입력 방지
+  };
 }
 
 export default function AddCustomerPage() {
@@ -94,21 +120,13 @@ export default function AddCustomerPage() {
     try {
       setSubmitting(true);
 
-      const payload = {
-        name: form.name.trim(),
-        rrn: form.rrn.replace("-", ""),              // 하이픈 제거
-        phone: form.phone.replaceAll("-", ""),       // 하이픈 제거
-        address: form.address.trim(),
-        bank: (form.bank === "custom" ? form.bankCustom : form.bank).trim(),
-        bank_number: form.accountNumber.replaceAll("-", "").trim(),
-        nationality_code: form.nationalityCode.trim(),
-        nationality_name: form.nationality.trim(),
-        final_fee_percent: form.finalFee.replace(/[^\d.]/g, "").trim(), // "2%" 같은 입력 방지
-      };
+      // 백 스펙대로 payload 생성
+      const payload = toCreateCustomerRequest(form);
 
       const res = await createCustomer(payload);
       console.log("createCustomer res:", res);
 
+      // 응답에서 customerId 추출 (백 응답 구조가 확실치 않아서 방어적으로)
       const customerId =
         (res as any)?.customerId ??
         (res as any)?.customer_id ??
@@ -122,7 +140,13 @@ export default function AddCustomerPage() {
         return;
       }
 
-      navigate("/step1/confirm", { state: { form, customerId } });
+      // Confirm 스킵하고 바로 기간 선택으로 이동
+      navigate("/step2/select-period", {
+        state: {
+          customerId,
+          customerForm: form,
+        },
+      });
     } catch (e) {
       console.error(e);
       alert("신규 고객 생성에 실패했어요. (콘솔 확인)");

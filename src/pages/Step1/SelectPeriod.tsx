@@ -2,6 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { refundSelection } from "../../lib/api/refund";
 
+// ✅ AddCustomerPage에서 export한 타입을 가져오는 걸 추천!
+// 경로는 프로젝트 구조에 맞게 조정해줘.
+import type { CustomerForm } from "../Step1/AddCustomerPage";
+
 type Year = string;
 
 const YEAR_OPTIONS: Year[] = [
@@ -125,14 +129,19 @@ function YearRadioDropdown({
   );
 }
 
-type PeriodNavState = { customerId?: number };
+type PeriodNavState = {
+  customerId?: number;
+  customerForm?: CustomerForm;
+};
 
 export default function SelectPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const customerId =
-    (location.state as PeriodNavState | null)?.customerId ?? null;
+  // ✅ state를 한 번에 꺼내기
+  const navState = location.state as PeriodNavState | null;
+  const customerId = navState?.customerId ?? null;
+  const customerForm = navState?.customerForm ?? null;
 
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
@@ -143,11 +152,11 @@ export default function SelectPeriod() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // customerId 없이 들어오면 튕기기(안전장치)
+  // ✅ customerId + customerForm 둘 다 없으면 튕기기(안전장치)
   useEffect(() => {
-    if (typeof customerId === "number") return;
-    navigate("/", { replace: true });
-  }, [customerId, navigate]);
+    if (typeof customerId === "number" && customerForm) return;
+    navigate("/step1/add", { replace: true }); // 원래 "/"였는데 흐름상 add로 보내는 게 자연스러움
+  }, [customerId, customerForm, navigate]);
 
   const isValid = useMemo(() => {
     if (!startYear || !endYear || !claimDate) return false;
@@ -157,6 +166,7 @@ export default function SelectPeriod() {
   const handleSubmit = async () => {
     if (!isValid) return;
     if (typeof customerId !== "number") return;
+    if (!customerForm) return;
 
     try {
       setSubmitting(true);
@@ -167,10 +177,11 @@ export default function SelectPeriod() {
         claim_to: `${endYear}-12-31`,
       });
 
-      // ✅ 다음 단계로 이동 (응답 result도 같이 넘기기)
+      // ✅ 다음 단계로 이동 (customerForm도 같이 넘기기!)
       navigate("/step1/existing", {
         state: {
           customerId,
+          customerForm,
           startYear,
           endYear,
           claimDate,

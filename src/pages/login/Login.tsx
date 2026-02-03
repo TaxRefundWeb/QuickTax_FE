@@ -135,10 +135,15 @@ export default function Login() {
         onClose={() => setIsStartModalOpen(false)}
         onLoadPrevious={handleOpenHistoryModal}
         onStartNew={() => {
+          if (!selectedCustomer) return;
+
           setIsStartModalOpen(false);
-          navigate("/step1/period");
+          navigate("/step1/period", {
+            state: { customerId: selectedCustomer.customerId },
+          });
         }}
       />
+
 
       {/* 3) HistoryModal */}
       <HistoryModal

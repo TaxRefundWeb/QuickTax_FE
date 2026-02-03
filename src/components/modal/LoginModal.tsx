@@ -25,7 +25,8 @@ export default function LoginModal({
   closeOnEsc = false,
 }: LoginModalProps) {
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // ✅ customerId는 number이므로 selectedId도 number로 통일
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
@@ -65,7 +66,7 @@ export default function LoginModal({
   }, [customers, query]);
 
   const selectedCustomer = useMemo(() => {
-    if (!selectedId) return null;
+    if (typeof selectedId !== "number") return null;
     return filteredCustomers.find((c) => c.customerId === selectedId) ?? null;
   }, [filteredCustomers, selectedId]);
 
@@ -101,7 +102,8 @@ export default function LoginModal({
     setError(null);
   }, [isOpen]);
 
-  const handleRowSelect = (customerId: string) => {
+  // ✅ number로 받도록 변경
+  const handleRowSelect = (customerId: number) => {
     setSelectedId((prev) => (prev === customerId ? null : customerId));
   };
 
@@ -172,6 +174,7 @@ export default function LoginModal({
               !loading &&
               !error &&
               filteredCustomers.map((c) => {
+                // ✅ number 비교
                 const isSelected = c.customerId === selectedId;
 
                 return (

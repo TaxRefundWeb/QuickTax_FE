@@ -40,7 +40,7 @@ export async function updateCustomer(customerId: string, body: UpdateCustomerReq
 }
 
 // 고객 경정청구 목록 조회
-export async function getCustomerCases(customerId: string) {
+export async function getCustomerCases(customerId: number) {
   const res = await api.get(`/customers/${customerId}/cases`);
   return res.data;
 }

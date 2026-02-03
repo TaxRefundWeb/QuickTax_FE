@@ -126,18 +126,18 @@ function YearRadioDropdown({
 }
 
 type PeriodNavState = {
-  customerId?: number | string;
+  customerid?: number | string;
 };
 
 export default function SelectPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ state에서 customerId만 받음 (string이어도 허용)
+  // ✅ state에서 customerid 받음 (string이어도 허용)
   const rawCustomerId =
-    (location.state as PeriodNavState | null)?.customerId ?? null;
+    (location.state as PeriodNavState | null)?.customerid ?? null;
 
-  const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
+  const customerid = rawCustomerId === null ? null : Number(rawCustomerId);
 
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
@@ -148,11 +148,11 @@ export default function SelectPeriod() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ customerId 없으면 튕기기 (기존 고객/신규 고객 모두 customerId는 있어야 함)
+  // ✅ customerid 없으면 튕기기
   useEffect(() => {
-    if (Number.isFinite(customerId)) return;
-    navigate("/", { replace: true }); // 로그인으로 보내는 게 가장 안전
-  }, [customerId, navigate]);
+    if (Number.isFinite(customerid)) return;
+    navigate("/", { replace: true });
+  }, [customerid, navigate]);
 
   const isValid = useMemo(() => {
     if (!startYear || !endYear || !claimDate) return false;
@@ -161,7 +161,7 @@ export default function SelectPeriod() {
 
   const handleSubmit = async () => {
     if (!isValid) return;
-    if (!Number.isFinite(customerId)) return;
+    if (!Number.isFinite(customerid)) return;
 
     try {
       setSubmitting(true);
@@ -171,9 +171,10 @@ export default function SelectPeriod() {
         claim_to: `${endYear}-12-31`,
       });
 
+      // ✅ 다음 페이지에도 customerid로 넘김
       navigate("/step1/existing", {
         state: {
-          customerId,
+          customerid,
           startYear,
           endYear,
           claimDate,

@@ -2,12 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import FileTab, { type FileTabItem } from "../../components/filetab/FileTab";
+import {
+  createRefundClaim,
+  type CreateRefundClaimPayload,
+} from "../../lib/api/refundClaims";
 
 type Option = { value: string; label: string };
 
 type PeriodState = {
   startYear?: string;
   endYear?: string;
+  customerid?: number; // ✅ number로 유지
 };
 
 type RadioDropdownProps = {
@@ -142,9 +147,9 @@ function yearsInRange(start: string, end: string): number[] {
 /** 근무처(배열) */
 type WorkPlace = {
   corpName: string;
-  workStart: string;
-  workEnd: string;
-  sme: string | null; // 여/부
+  workStart: string; // YYYY-MM-DD
+  workEnd: string; // YYYY-MM-DD
+  sme: string | null; // yes/no
   bizNo: string;
 };
 const emptyWorkPlace = (): WorkPlace => ({
@@ -167,16 +172,16 @@ type YearForm = {
   workplaces: WorkPlace[];
 
   // 세액 감면 및 서류 정보
-  reduceStart: string | null;
-  reduceEnd: string | null;
-  docDate: string;
+  reduceStart: string | null; // 연도("2020") 선택
+  reduceEnd: string | null; // 연도("2025") 선택
+  docDate: string; // YYYY-MM-DD
 
   // 인적 공제
-  spouse: string | null; // 유/무
+  spouse: string | null; // yes/no
   spouseName: string;
   spouseRrn: string;
 
-  child: string | null; // 유/무
+  child: string | null; // yes/no
   children: ChildInfo[];
 };
 
@@ -206,11 +211,12 @@ function isYearFormValid(f: YearForm) {
         w.workEnd &&
         w.sme
     );
-    
+
   const reduceValid = Boolean(f.reduceStart && f.reduceEnd);
   const docValid = Boolean(f.docDate);
   const spouseChoiceValid = f.spouse === "yes" || f.spouse === "no";
   const childChoiceValid = f.child === "yes" || f.child === "no";
+
   const spouseDetailValid =
     f.spouse !== "yes" ||
     (f.spouseName.trim().length > 0 && f.spouseRrn.trim().length > 0);
@@ -231,6 +237,67 @@ function isYearFormValid(f: YearForm) {
   );
 }
 
+/** =========================
+ *  payload helpers (정답 버전)
+ *  ========================= */
+const normalizeBizNo = (s: string) => s.replaceAll("-", "").trim();
+const normalizeRrn = (s: string) => s.replaceAll("-", "").trim();
+
+function toYesNo(v: string | null) {
+  // 백 로직: "yes"면 있음, 그 외는 없음 처리
+  return v === "yes" ? "yes" : "no";
+}
+
+// "2020" -> "2020-01-01" / "2020-12-31"
+function yearToDateStart(year: string | null) {
+  return year ? `${year}-01-01` : "";
+}
+function yearToDateEnd(year: string | null) {
+  return year ? `${year}-12-31` : "";
+}
+
+function buildRefundClaimPayload(args: {
+  customerid: number;
+  years: number[];
+  formsByYear: Record<string, YearForm>;
+}): CreateRefundClaimPayload {
+  const { customerid, years, formsByYear } = args;
+
+  return {
+    customerid,
+    case_year: years,
+    customers: years.flatMap((year) => {
+      const f = formsByYear[String(year)];
+      if (!f) return [];
+
+      return f.workplaces.map((w) => ({
+        Business_number: normalizeBizNo(w.bizNo),
+        small_business_yn: toYesNo(w.sme),
+
+        case_work_start: w.workStart,
+        case_work_end: w.workEnd,
+
+        claim_date: f.docDate,
+
+        reduction_start: yearToDateStart(f.reduceStart),
+        reduction_end: yearToDateEnd(f.reduceEnd),
+
+        spouse_yn: toYesNo(f.spouse),
+        spouse_name: f.spouse === "yes" ? f.spouseName.trim() : "",
+        spouse_RRN: f.spouse === "yes" ? normalizeRrn(f.spouseRrn) : "",
+
+        child_list:
+          f.child === "yes"
+            ? f.children.map((c) => ({
+                child_yn: "yes", // ✅ 백 검증 로직 맞춤
+                child_name: c.name.trim(),
+                child_RRN: normalizeRrn(c.rrn),
+              }))
+            : [],
+      }));
+    }),
+  };
+}
 
 export default function ExistingCustomerPage() {
   const navigate = useNavigate();
@@ -239,12 +306,19 @@ export default function ExistingCustomerPage() {
   const period = (location.state as PeriodState | null) ?? null;
   const startYear = period?.startYear ?? "";
   const endYear = period?.endYear ?? "";
+  const customerid = period?.customerid;
 
   useEffect(() => {
     if (!startYear || !endYear) {
       navigate("/step1/period", { replace: true });
+      return;
     }
-  }, [startYear, endYear, navigate]);
+    if (!Number.isFinite(customerid)) {
+      alert("고객 ID가 없습니다. 고객 선택부터 다시 진행해주세요.");
+      navigate("/", { replace: true });
+      return;
+    }
+  }, [startYear, endYear, customerid, navigate]);
 
   const yearList = useMemo(
     () => yearsInRange(startYear, endYear),
@@ -304,7 +378,6 @@ export default function ExistingCustomerPage() {
 
   const removeWorkPlace = (idx: number) => {
     if (idx === 0) return;
-
     updateCurrent({
       workplaces: currentForm.workplaces.filter((_, i) => i !== idx),
     });
@@ -345,16 +418,31 @@ export default function ExistingCustomerPage() {
     });
   }, [openYears, formsByYear]);
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     if (!allValid) return;
+    if (!Number.isFinite(customerid)) return;
 
-    navigate("/step2/ocr-compare", {
-      state: {
-        period: { startYear, endYear },
-        years: openYears.map(String),
+    try {
+      const payload = buildRefundClaimPayload({
+        customerid: customerid!,
+        years: openYears,
         formsByYear,
-      },
-    });
+      });
+
+      const res = await createRefundClaim(payload);
+
+      navigate("/step2/ocr-compare", {
+        state: {
+          period: { startYear, endYear, customerid },
+          years: openYears.map(String),
+          formsByYear,
+          refundClaimResult: res,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+      alert("서버 요청 중 오류가 발생했습니다. 콘솔을 확인해주세요.");
+    }
   };
 
   return (
@@ -377,21 +465,21 @@ export default function ExistingCustomerPage() {
             openYears.length <= 1
               ? undefined
               : (key) => {
-                setOpenYears((prev) => prev.filter((y) => String(y) !== key));
-                setFormsByYear((prev) => {
-                  const next = { ...prev };
-                  delete next[key];
-                  return next;
-                });
+                  setOpenYears((prev) => prev.filter((y) => String(y) !== key));
+                  setFormsByYear((prev) => {
+                    const next = { ...prev };
+                    delete next[key];
+                    return next;
+                  });
 
-                setActiveKey((prevKey) => {
-                  if (prevKey !== key) return prevKey;
-                  const remaining = openYears
-                    .filter((y) => String(y) !== key)
-                    .map(String);
-                  return remaining[0] ?? "";
-                });
-              }
+                  setActiveKey((prevKey) => {
+                    if (prevKey !== key) return prevKey;
+                    const remaining = openYears
+                      .filter((y) => String(y) !== key)
+                      .map(String);
+                    return remaining[0] ?? "";
+                  });
+                }
           }
         />
 
@@ -411,7 +499,6 @@ export default function ExistingCustomerPage() {
                       key={idx}
                       className="relative rounded-[8px] border border-gray-200 bg-white p-8"
                     >
-                      {/* 삭제 버튼 */}
                       {idx > 0 && (
                         <button
                           type="button"
@@ -424,12 +511,10 @@ export default function ExistingCustomerPage() {
                       )}
 
                       <div className="grid grid-cols-[80px_1fr] gap-6">
-                        {/* 왼쪽 부분 */}
                         <div className="flex items-center justify-start pl-1 -ml-2 border-r border-gray-100 text-[16px] font-medium text-gray-600">
                           {`근무처 ${idx + 1}`}
                         </div>
 
-                        {/* 오른쪽 부분 */}
                         <div className="grid grid-cols-2 gap-y-6">
                           <div>
                             <label className="mb-2 block text-[16px] text-gray-500">
@@ -567,7 +652,9 @@ export default function ExistingCustomerPage() {
                     <input
                       type="date"
                       value={currentForm.docDate}
-                      onChange={(e) => updateCurrent({ docDate: e.target.value })}
+                      onChange={(e) =>
+                        updateCurrent({ docDate: e.target.value })
+                      }
                       className="h-[48px] w-[177px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                     />
                   </div>
@@ -582,7 +669,6 @@ export default function ExistingCustomerPage() {
                   인적 공제 정보
                 </h2>
 
-                {/* 배우자 */}
                 <div className="space-y-8">
                   <div className="w-[100px]">
                     <RadioDropdown
@@ -627,7 +713,6 @@ export default function ExistingCustomerPage() {
 
                   <div className="border-t border-gray-100" />
 
-                  {/* 자녀 */}
                   <div className="w-[100px]">
                     <RadioDropdown
                       label="자녀 유무"
@@ -693,7 +778,7 @@ export default function ExistingCustomerPage() {
           </div>
         </div>
 
-        {/* 버튼들(파일탭 밖) */}
+        {/* 버튼들 */}
         <div className="mt-6 flex items-center justify-between">
           <button
             type="button"

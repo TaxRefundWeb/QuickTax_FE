@@ -3,7 +3,7 @@ import type { Customer } from "../../lib/api/customers";
 import { getCustomerCases } from "../../lib/api/customers";
 
 type CaseItem = {
-  year?: number;            // 백 필드명이 다를 수 있어서 optional
+  year?: number; // 백 필드명이 다를 수 있어서 optional
   taxYear?: number;
   filedAt?: string;
   taxMethod?: string;
@@ -18,12 +18,12 @@ type HistoryModalProps = {
 
   customer: Customer | null;
 
+  // 나중에 기능 추가할 때 쓰려고 남겨둠
   onDownloadZip?: (customerId: string, year: number) => void;
   onStartNew?: () => void;
 };
 
 function pickYear(item: CaseItem): number | null {
-  // 가능한 필드들에서 year 추출
   const y =
     (typeof item.year === "number" && item.year) ||
     (typeof item.taxYear === "number" && item.taxYear) ||
@@ -32,44 +32,74 @@ function pickYear(item: CaseItem): number | null {
   return y;
 }
 
+function normalizeList(res: any): CaseItem[] {
+  // 1) res가 이미 배열
+  if (Array.isArray(res)) return res;
+
+  // 2) ApiResponse { data: [...] }
+  if (Array.isArray(res?.data)) return res.data;
+
+  // 3) ApiResponse { data: { data: [...] } } 같은 2중 구조
+  if (Array.isArray(res?.data?.data)) return res.data.data;
+
+  return [];
+}
+
 export default function HistoryModal({
   isOpen,
   onClose,
   customer,
-  onDownloadZip,
-  onStartNew,
 }: HistoryModalProps) {
   const [cases, setCases] = useState<CaseItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [pickedYear, setPickedYear] = useState<number | null>(null);
 
+  const customerId = customer?.customerId ?? null;
+
+  // ✅ 모달 닫히면 상태 초기화(잔상 방지)
+  useEffect(() => {
+    if (isOpen) return;
+    setCases([]);
+    setPickedYear(null);
+    setLoading(false);
+  }, [isOpen]);
+
   // ✅ 모달 열리고 customer가 있으면 cases 불러오기
   useEffect(() => {
     if (!isOpen) return;
-    if (!customer) return;
+    if (typeof customerId !== "number") return;
+
+    let alive = true;
 
     (async () => {
       try {
         setLoading(true);
 
-        const res = await getCustomerCases(customer.customerId);
-        const list = (res as any)?.data ?? res; // ApiResponse 대응
+        const res = await getCustomerCases(customerId);
+        const list = normalizeList(res);
 
-        setCases(Array.isArray(list) ? list : []);
+        if (!alive) return;
+        setCases(list);
       } catch (e) {
         console.error(e);
+        if (!alive) return;
         setCases([]);
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
-  }, [isOpen, customer?.customerId]);
+
+    return () => {
+      alive = false;
+    };
+  }, [isOpen, customerId]);
 
   // ✅ customer 바뀌면 선택 연도 초기화
   useEffect(() => {
     setPickedYear(null);
-  }, [customer?.customerId]);
+  }, [customerId]);
 
   // ✅ cases에서 year 목록 만들기
   const years = useMemo(() => {
@@ -84,18 +114,20 @@ export default function HistoryModal({
   // ✅ 선택 연도의 record(케이스) 하나 고르기
   const record = useMemo(() => {
     if (selectedYear === null) return null;
-
-    // year/taxYear 중 하나가 맞는 케이스를 찾아줌
-    return (
-      cases.find((c) => pickYear(c) === selectedYear) ??
-      null
-    );
+    return cases.find((c) => pickYear(c) === selectedYear) ?? null;
   }, [cases, selectedYear]);
 
-  const handleDownloadZip = () => {
-    if (!customer || selectedYear === null) return;
-    if (onDownloadZip) return onDownloadZip(customer.customerId, selectedYear);
-    console.log("zip 다운로드(임시):", customer.customerId, selectedYear);
+  // ✅ 버튼은 "UI만" (나중에 기능 추가)
+  const handleZipClick = () => {
+    console.log("zip 다운로드(추후 연결):", customerId, selectedYear);
+  };
+
+  const handlePdfClick = () => {
+    console.log("pdf 다운로드(추후 연결):", customerId, selectedYear);
+  };
+
+  const handleStartNew = () => {
+    console.log("새 경정청구 신청(추후 연결):", customerId);
   };
 
   if (!isOpen) return null;
@@ -208,7 +240,9 @@ export default function HistoryModal({
                       {(record.refundAmount ?? 0).toLocaleString()}원
                     </div>
 
-                    <div className="text-[16px] text-gray-500">경정청구 처리 일자</div>
+                    <div className="text-[16px] text-gray-500">
+                      경정청구 처리 일자
+                    </div>
                     <div className="text-[16px] font-semibold text-gray-900">
                       {record.filedAt ?? "-"}
                     </div>
@@ -221,7 +255,7 @@ export default function HistoryModal({
             <section className="col-start-5 flex flex-col items-end gap-3">
               <button
                 type="button"
-                onClick={handleDownloadZip}
+                onClick={handleZipClick}
                 disabled={zipDisabled}
                 className={[
                   "h-[40px] w-[138px] rounded-[4px] border px-3 text-[12px] transition-colors",
@@ -232,9 +266,10 @@ export default function HistoryModal({
               >
                 zip 파일 다운로드
               </button>
+
               <button
                 type="button"
-                onClick={handleDownloadZip}
+                onClick={handlePdfClick}
                 disabled={zipDisabled}
                 className={[
                   "h-[40px] w-[138px] rounded-[4px] border px-3 text-[12px] transition-colors",
@@ -253,7 +288,7 @@ export default function HistoryModal({
         <div className="absolute bottom-0 left-0 right-0 flex justify-center pb-11">
           <button
             type="button"
-            onClick={onStartNew}
+            onClick={handleStartNew}
             className="h-[67px] w-[251px] rounded-[8px] bg-[#0061FE] text-[20px] font-bold text-white hover:brightness-95 active:brightness-90"
           >
             새 경정청구 신청하기

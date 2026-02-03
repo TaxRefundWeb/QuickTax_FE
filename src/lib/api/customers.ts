@@ -1,11 +1,11 @@
 import { api } from "./client";
 
 export type Customer = {
-  customerId: string; // or id
+  customerId: number;
   name: string;
-  rrn?: string; // 주민번호(마스킹?) - 실제 필드명은 백에 맞추기
-  // 필요한 필드 계속 추가
+  rrn?: string;
 };
+
 
 export type CreateCustomerRequest = {
   name: string;

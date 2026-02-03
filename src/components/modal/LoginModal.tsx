@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./LoginModal.module.css";
 
-// 실 API
 import { getCustomers, type Customer } from "../../lib/api/customers";
 
 type LoginModalProps = {
@@ -9,12 +8,54 @@ type LoginModalProps = {
   onClose: () => void;
   onAddCustomer: () => void;
 
-  // Login.tsx에서 이제 API Customer 타입을 쓰고 있으니 그대로 맞춤
   onOpenStartModal: (customer: Customer) => void;
 
   closeOnBackdropClick?: boolean;
   closeOnEsc?: boolean;
 };
+
+// 백 응답 형태(최소한만)
+type GetCustomersResponse = {
+  isSuccess?: boolean;
+  code?: string;
+  message?: string;
+  result?: {
+    customers?: Array<{
+      customerid?: number | string;
+      name?: string;
+      birthdate?: string;
+      rrn?: string;
+    }>;
+  };
+};
+
+function normalizeCustomers(res: unknown): Customer[] {
+  const r = res as GetCustomersResponse;
+
+  const raw = r?.result?.customers ?? [];
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((c) => {
+      const idNum =
+        typeof c.customerid === "number"
+          ? c.customerid
+          : typeof c.customerid === "string"
+          ? Number(c.customerid)
+          : NaN;
+
+      if (!Number.isFinite(idNum)) return null;
+
+      return {
+        customerId: idNum,
+        name: c.name ?? "",
+        rrn: c.rrn,
+        // Customer 타입에 birthdate가 없다면 아래 줄은 제거해도 됨
+        birthdate: c.birthdate,
+      } as Customer;
+    })
+    .filter((c): c is Customer => !!c && !!c.name);
+}
 
 export default function LoginModal({
   isOpen,
@@ -25,15 +66,17 @@ export default function LoginModal({
   closeOnEsc = false,
 }: LoginModalProps) {
   const [query, setQuery] = useState("");
-  // ✅ customerId는 number이므로 selectedId도 number로 통일
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 모달 열리면 고객 목록 불러오기
   useEffect(() => {
     if (!isOpen) return;
+
+    let alive = true;
 
     (async () => {
       try {
@@ -41,17 +84,24 @@ export default function LoginModal({
         setError(null);
 
         const res = await getCustomers();
-        const list = (res as any)?.data ?? res; // ApiResponse 대응
+        const list = normalizeCustomers(res);
 
-        setCustomers(Array.isArray(list) ? list : []);
+        if (!alive) return;
+        setCustomers(list);
       } catch (e) {
         console.error(e);
+        if (!alive) return;
         setError("고객 목록을 불러오지 못했습니다.");
         setCustomers([]);
       } finally {
+        if (!alive) return;
         setLoading(false);
       }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [isOpen]);
 
   const filteredCustomers = useMemo(() => {
@@ -59,9 +109,10 @@ export default function LoginModal({
     if (!q) return customers;
 
     return customers.filter((c) => {
-      const nameHit = c.name?.includes(q);
+      const nameHit = (c.name ?? "").includes(q);
       const rrnHit = (c.rrn ?? "").includes(q);
-      return nameHit || rrnHit;
+      const birthHit = ((c as any).birthdate ?? "").includes(q);
+      return nameHit || rrnHit || birthHit;
     });
   }, [customers, query]);
 
@@ -70,9 +121,7 @@ export default function LoginModal({
     return filteredCustomers.find((c) => c.customerId === selectedId) ?? null;
   }, [filteredCustomers, selectedId]);
 
-  /**
-   * ESC 닫기 + body 스크롤 잠금
-   */
+  // ESC 닫기 + body 스크롤 잠금
   useEffect(() => {
     if (!isOpen) return;
 
@@ -90,9 +139,7 @@ export default function LoginModal({
     };
   }, [isOpen, onClose, closeOnEsc]);
 
-  /**
-   * 모달 닫힐 때 초기화
-   */
+  // 모달 닫힐 때 초기화
   useEffect(() => {
     if (isOpen) return;
     setQuery("");
@@ -102,7 +149,6 @@ export default function LoginModal({
     setError(null);
   }, [isOpen]);
 
-  // ✅ number로 받도록 변경
   const handleRowSelect = (customerId: number) => {
     setSelectedId((prev) => (prev === customerId ? null : customerId));
   };
@@ -174,8 +220,8 @@ export default function LoginModal({
               !loading &&
               !error &&
               filteredCustomers.map((c) => {
-                // ✅ number 비교
                 const isSelected = c.customerId === selectedId;
+                const birth = (c as any).birthdate ?? "-";
 
                 return (
                   <div
@@ -206,8 +252,8 @@ export default function LoginModal({
                       <span className={styles.nameText}>{c.name}님</span>
                     </div>
 
-                    {/* 생년월일 (백에 없으면 '-'로) */}
-                    <div className={styles.cellBirth}>-</div>
+                    {/* 생년월일 */}
+                    <div className={styles.cellBirth}>{birth}</div>
 
                     {/* 주민번호 */}
                     <div className={styles.cellRrn}>{c.rrn ?? "-"}</div>

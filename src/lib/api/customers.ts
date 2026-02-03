@@ -1,9 +1,10 @@
 import { api } from "./client";
 
 export type Customer = {
-  customerId: number; // ERD: Customer_id (BIGINT)
+  customerId: number;
   name: string;
   rrn?: string;
+  birthdate?: string;
 };
 
 export type CreateCustomerRequest = {

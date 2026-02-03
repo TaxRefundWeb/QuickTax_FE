@@ -168,7 +168,7 @@ export default function ConfirmCustomerPage() {
       setSubmitting(true);
 
       // 여기서는 “다음 단계로 이동”만. (수정 저장은 나중에 PATCH로)
-      navigate("/step2/select-period", {
+      navigate("/step1/period", {
         state: { customerId },
       });
     } finally {
@@ -189,7 +189,7 @@ export default function ConfirmCustomerPage() {
     <div className="w-full">
       <div className="mx-auto w-full max-w-[540px]">
         <h1 className="mb-14 text-[24px] font-bold text-gray-900">
-          입력하신 정보를 확인해주세
+          입력하신 정보를 확인해주세요
         </h1>
 
         {loading && (

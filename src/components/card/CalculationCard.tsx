@@ -18,6 +18,9 @@ export default function CalculationCard({
       className={[
         "flex flex-col rounded-[32px] bg-white px-8 py-10",
         "shadow-[0_1px_10px_rgba(0,0,0,0.03)]",
+        "transition-shadow duration-200",
+        "cursor-pointer",
+        "hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)]",
         selected ? "border-[3px] border-[#64A5FF]" : "border-2 border-gray-100",
       ].join(" ")}
       style={{
@@ -25,6 +28,7 @@ export default function CalculationCard({
         height: "586px",
       }}
     >
+
       {/* 상단 뱃지 */}
       <div className="relative mb-[64px] flex justify-center -mt-4">
         <span className="rounded-full bg-[#64A5FF] px-5 py-1 text-[12px] font-semibold text-white">

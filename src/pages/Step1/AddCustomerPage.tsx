@@ -55,7 +55,7 @@ function formatPhone(value: string) {
 
 // UI 폼 → 백엔드 Request Body 변환
 function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
-  // ✅ finalFee는 UI에서 숫자만 입력되도록 만들었지만, 방어적으로 한 번 더 digits만
+  // finalFee는 UI에서 숫자만 입력되도록 만들었지만, 방어적으로 한 번 더 digits만
   const feeText = onlyDigits(form.finalFee);
   const fee = feeText ? Number(feeText) : 0;
 
@@ -68,7 +68,7 @@ function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
     bank_number: form.accountNumber.replaceAll("-", "").trim(),
     nationality_code: form.nationalityCode.trim(),
     nationality_name: form.nationality.trim(),
-    final_fee_percent: fee, // ✅ number로 전송
+    final_fee_percent: fee, // number로 전송
   };
 }
 
@@ -148,7 +148,7 @@ export default function AddCustomerPage() {
       }
 
       sessionStorage.setItem("customerId", String(customerId));
-      navigate("/step2/period", {
+      navigate("/step1/period", {
         state: { customerId },
       });
 

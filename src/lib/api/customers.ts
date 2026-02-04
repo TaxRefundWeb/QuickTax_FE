@@ -16,7 +16,7 @@ export type CreateCustomerRequest = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: string;
+  final_fee_percent: number;
 };
 
 export type UpdateCustomerRequest = Partial<CreateCustomerRequest>;

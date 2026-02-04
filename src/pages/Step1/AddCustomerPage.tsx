@@ -12,10 +12,10 @@ export type CustomerForm = {
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
-  finalFee: string;
+  finalFee: string; // UI는 문자열로 들고 있다가, 전송할 때 number로 변환
 };
 
-// 백엔드 신규 고객 등록 Request Body 스펙
+// 백엔드 신규 고객 등록 Request Body 스펙 (DB가 INT면 number로 보내는 게 안전)
 type CreateCustomerRequest = {
   name: string;
   rrn: string;
@@ -25,7 +25,7 @@ type CreateCustomerRequest = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: string;
+  final_fee_percent: number; // ✅ string -> number
 };
 
 function onlyDigits(v: string) {
@@ -55,6 +55,10 @@ function formatPhone(value: string) {
 
 // UI 폼 → 백엔드 Request Body 변환
 function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
+  // ✅ finalFee는 UI에서 숫자만 입력되도록 만들었지만, 방어적으로 한 번 더 digits만
+  const feeText = onlyDigits(form.finalFee);
+  const fee = feeText ? Number(feeText) : 0;
+
   return {
     name: form.name.trim(),
     rrn: form.rrn.replace("-", ""),
@@ -64,7 +68,7 @@ function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
     bank_number: form.accountNumber.replaceAll("-", "").trim(),
     nationality_code: form.nationalityCode.trim(),
     nationality_name: form.nationality.trim(),
-    final_fee_percent: form.finalFee.replace(/[^\d.]/g, "").trim(), // "2%" 같은 입력 방지
+    final_fee_percent: fee, // ✅ number로 전송
   };
 }
 
@@ -100,6 +104,12 @@ export default function AddCustomerPage() {
       return;
     }
 
+    // ✅ 최종 수수료: 숫자만 입력되게 강제
+    if (name === "finalFee") {
+      setForm((prev) => ({ ...prev, finalFee: onlyDigits(value) }));
+      return;
+    }
+
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -120,13 +130,11 @@ export default function AddCustomerPage() {
     try {
       setSubmitting(true);
 
-      // 백 스펙대로 payload 생성
       const payload = toCreateCustomerRequest(form);
 
       const res = await createCustomer(payload);
       console.log("createCustomer res:", res);
 
-      // 응답에서 customerId 추출 (백 응답 구조가 확실치 않아서 방어적으로)
       const customerId =
         (res as any)?.customerId ??
         (res as any)?.customer_id ??
@@ -140,7 +148,6 @@ export default function AddCustomerPage() {
         return;
       }
 
-      // Confirm 스킵하고 바로 기간 선택으로 이동
       navigate("/step2/select-period", {
         state: {
           customerId,
@@ -341,6 +348,8 @@ export default function AddCustomerPage() {
                 type="text"
                 value={form.finalFee}
                 onChange={handleChange}
+                inputMode="numeric"
+                placeholder="예: 2"
                 className={`${inputFixed} w-[320px]`}
               />
             </div>

@@ -30,7 +30,7 @@ export type CreateRefundClaimResponse = unknown;
 
 export async function createRefundClaim(payload: CreateRefundClaimPayload) {
   const res = await api.post<CreateRefundClaimResponse>(
-    "/api/refund-claims",
+    "/refund-claims",
     payload
   );
   return res.data;

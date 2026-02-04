@@ -74,7 +74,7 @@ export type PatchCustomerPayload = {
 };
 
 export async function patchCustomer(customerId: number, body: PatchCustomerPayload) {
-  const res = await api.patch(`/api/customers/${customerId}`, body);
+  const res = await api.patch(`/customers/${customerId}`, body);
   return res.data;
 }
 

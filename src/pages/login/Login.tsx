@@ -167,6 +167,10 @@ export default function Login() {
         userName={selectedCustomer?.name ?? "OOO"}
         onClose={() => setIsStartModalOpen(false)}
         onLoadPrevious={handleOpenHistoryModal}
+        onBack={() => {
+          setIsStartModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
         onStartNew={() => {
           if (!selectedCustomer) return;
 

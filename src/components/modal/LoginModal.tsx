@@ -29,6 +29,43 @@ type GetCustomersResponse = {
   };
 };
 
+function formatRrn(input?: string): string {
+  if (!input) return "-";
+  const digits = input.replace(/\D/g, "");
+  if (digits.length < 7) return input;
+  const front = digits.slice(0, 6);
+  const back = digits.slice(6, 13);
+  return back ? `${front}-${back}` : front;
+}
+
+function inferCenturyFromRrn(rrnDigits?: string): number | null {
+  if (!rrnDigits || rrnDigits.length < 7) return null;
+  const g = rrnDigits[6];
+  if (g === "1" || g === "2" || g === "5" || g === "6") return 1900;
+  if (g === "3" || g === "4" || g === "7" || g === "8") return 2000;
+  return null;
+}
+
+function formatBirthFromSix(birth6?: string, rrn?: string): string {
+  if (!birth6) return "-";
+
+  const b = birth6.replace(/\D/g, "");
+  if (b.length !== 6) return birth6;
+
+  const rrnDigits = (rrn ?? "").replace(/\D/g, "");
+  const century = inferCenturyFromRrn(rrnDigits);
+
+  const yy = Number(b.slice(0, 2));
+  const mm = b.slice(2, 4);
+  const dd = b.slice(4, 6);
+
+  // 세기 추정이 안 되면 "01.06.08"처럼만 표시
+  if (!century) return `${b.slice(0, 2)}.${mm}.${dd}`;
+
+  const yyyy = String(century + yy);
+  return `${yyyy}.${mm}.${dd}`;
+}
+
 function normalizeCustomers(res: unknown): Customer[] {
   const r = res as GetCustomersResponse;
 
@@ -110,8 +147,17 @@ export default function LoginModal({
 
     return customers.filter((c) => {
       const nameHit = (c.name ?? "").includes(q);
-      const rrnHit = (c.rrn ?? "").includes(q);
-      const birthHit = ((c as any).birthdate ?? "").includes(q);
+
+      // 검색도 "하이픈 포함" 형태로도 걸리게
+      const rrnRaw = (c.rrn ?? "");
+      const rrnFmt = formatRrn(c.rrn);
+      const rrnHit = rrnRaw.includes(q) || rrnFmt.includes(q);
+
+      // birthdate(6자리)도 "2001.06.08" 형태 검색 가능하게
+      const birthRaw = ((c as any).birthdate ?? "") as string;
+      const birthFmt = formatBirthFromSix((c as any).birthdate, c.rrn);
+      const birthHit = birthRaw.includes(q) || birthFmt.includes(q);
+
       return nameHit || rrnHit || birthHit;
     });
   }, [customers, query]);
@@ -221,7 +267,10 @@ export default function LoginModal({
               !error &&
               filteredCustomers.map((c) => {
                 const isSelected = c.customerId === selectedId;
-                const birth = (c as any).birthdate ?? "-";
+
+                // 표시용 포맷 적용
+                const birth = formatBirthFromSix((c as any).birthdate, c.rrn);
+                const rrn = formatRrn(c.rrn);
 
                 return (
                   <div
@@ -256,7 +305,7 @@ export default function LoginModal({
                     <div className={styles.cellBirth}>{birth}</div>
 
                     {/* 주민번호 */}
-                    <div className={styles.cellRrn}>{c.rrn ?? "-"}</div>
+                    <div className={styles.cellRrn}>{rrn}</div>
 
                     {/* 우측 화살표 */}
                     <button

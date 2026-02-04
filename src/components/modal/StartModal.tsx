@@ -1,9 +1,14 @@
 import { useEffect } from "react";
+import styles from "../login/LoginModal.module.css"; 
+// ⬆️ LoginModal에서 쓰던 화살표 버튼 스타일 재사용
 
 type StartModalProps = {
   open: boolean;
   userName?: string;
+
   onClose: () => void;
+  onBack?: () => void;          // 고객 선택으로 돌아가기
+
   onLoadPrevious: () => void;
   onStartNew: () => void;
 };
@@ -12,6 +17,7 @@ export default function StartModal({
   open,
   userName = "OOO",
   onClose,
+  onBack,
   onLoadPrevious,
   onStartNew,
 }: StartModalProps) {
@@ -45,10 +51,46 @@ export default function StartModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
       {/* modal box */}
-      <div className="relative flex h-[500px] w-[764px] max-w-[92vw] items-center justify-center rounded-2xl bg-white shadow-xl">
+      <div
+        className="relative flex h-[500px] w-[764px] max-w-[92vw] items-center justify-center rounded-2xl bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ⬅ 뒤로가기 버튼 (LoginModal 스타일 그대로) */}
+        <button
+          type="button"
+          className={[
+            styles.arrowBtn,
+            styles.arrowActive,
+            "absolute left-4 top-4",
+          ].join(" ")}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+            onBack?.();
+          }}
+          aria-label="고객 선택으로 돌아가기"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {/* ⬅ LoginModal 화살표의 반대 방향 */}
+            <path
+              d="M8 2.5L4 6L8 9.5"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
         {/* content wrapper */}
         <div className="flex flex-col items-center px-10 text-center">
-          {/* 원 + 타이틀 한 줄 */}
+          {/* 원 + 타이틀 */}
           <div className="mb-8 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gray-200" />
             <h2 className="text-[24px] font-semibold text-gray-900">

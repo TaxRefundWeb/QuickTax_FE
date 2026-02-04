@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import styles from "../login/LoginModal.module.css"; 
-// ⬆️ LoginModal에서 쓰던 화살표 버튼 스타일 재사용
+import styles from "./LoginModal.module.css"; 
 
 type StartModalProps = {
   open: boolean;

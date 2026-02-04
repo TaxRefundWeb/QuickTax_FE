@@ -1,13 +1,11 @@
 import { useEffect } from "react";
-import styles from "./LoginModal.module.css"; 
+import styles from "./LoginModal.module.css";
 
 type StartModalProps = {
   open: boolean;
   userName?: string;
-
   onClose: () => void;
-  onBack?: () => void;          // 고객 선택으로 돌아가기
-
+  onBack: () => void; // ⬅ 고객 선택으로 돌아가기
   onLoadPrevious: () => void;
   onStartNew: () => void;
 };
@@ -54,7 +52,7 @@ export default function StartModal({
         className="relative flex h-[500px] w-[764px] max-w-[92vw] items-center justify-center rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ⬅ 뒤로가기 버튼 (LoginModal 스타일 그대로) */}
+        {/* ⬅ 뒤로가기 버튼 (LoginModal 화살표 버튼 스타일 재사용) */}
         <button
           type="button"
           className={[
@@ -64,32 +62,30 @@ export default function StartModal({
           ].join(" ")}
           onClick={(e) => {
             e.stopPropagation();
-            onClose();
-            onBack?.();
+            onBack();
           }}
-          aria-label="고객 선택으로 돌아가기"
+          aria-label="고객 다시 선택"
         >
+          {/* 디자이너 SVG로 교체 (currentColor로 색상 연동) */}
           <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            {/* ⬅ LoginModal 화살표의 반대 방향 */}
             <path
-              d="M8 2.5L4 6L8 9.5"
+              d="M15.5 19L8.5 12L15.5 5"
               stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              strokeWidth="1.5"
+              strokeLinecap="square"
             />
           </svg>
         </button>
 
         {/* content wrapper */}
         <div className="flex flex-col items-center px-10 text-center">
-          {/* 원 + 타이틀 */}
+          {/* 원 + 타이틀 한 줄 */}
           <div className="mb-8 flex items-center gap-3">
             <div className="h-10 w-10 rounded-full bg-gray-200" />
             <h2 className="text-[24px] font-semibold text-gray-900">

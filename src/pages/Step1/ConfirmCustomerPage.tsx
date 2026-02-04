@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getCustomer, patchCustomer } from "../../lib/api/customers";
+import { api } from "../../lib/api/client";
+
 
 type CustomerForm = {
   name: string;
@@ -27,7 +29,7 @@ type CustomerDetail = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: string;
+  final_fee_percent: number;
 };
 
 function onlyDigits(v: string) {
@@ -95,7 +97,7 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
     accountNumber: c.bank_number ?? "",
     nationalityCode: c.nationality_code ?? "",
     nationality: c.nationality_name ?? "",
-    finalFee: c.final_fee_percent ?? "",
+    finalFee: String(c.final_fee_percent ?? ""),
   };
 }
 
@@ -164,13 +166,9 @@ export default function ConfirmCustomerPage() {
       try {
         setLoading(true);
 
-        const res = await getCustomer(customerId);
-
+        const res = await api.get(`/customers/${customerId}?t=${Date.now()}`);
         const customer: CustomerDetail =
-          (res as any)?.result ??
-          (res as any)?.data?.result ??
-          (res as any)?.data ??
-          (res as any);
+          (res.data as any)?.result ?? res.data;
 
         const next = toCustomerFormFromServer(customer);
 
@@ -251,13 +249,9 @@ export default function ConfirmCustomerPage() {
       const payload = toPatchPayload(form);
       await patchCustomer(customerId, payload);
 
-      // ✅ PATCH 후 최신 값 다시 GET (DB 기준으로 화면 반영)
-      const res = await getCustomer(customerId);
-      const customer: CustomerDetail =
-        (res as any)?.result ??
-        (res as any)?.data?.result ??
-        (res as any)?.data ??
-        (res as any);
+      // PATCH 후 최신 값 다시 GET (DB 기준으로 화면 반영)
+      const res = await api.get(`/customers/${customerId}?t=${Date.now()}`);
+      const customer: CustomerDetail = (res.data as any)?.result ?? res.data;
 
       const next = toCustomerFormFromServer(customer);
       setForm(next);

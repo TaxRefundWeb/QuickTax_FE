@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
+
+import FindAccountModal from "../../components/modal/FindAccountModal";
+import LoginFailModal from "../../components/modal/LoginFailModal"; // ✅ 추가
 import LoginModal from "../../components/modal/LoginModal";
 import StartModal from "../../components/modal/StartModal";
 import HistoryModal from "../../components/modal/HistoryModal";
@@ -18,8 +21,16 @@ export default function Login() {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
+  // 아이디/비밀번호 찾기 안내 모달
+  const [isFindModalOpen, setIsFindModalOpen] = useState(false);
+
+  // ✅ 로그인 실패 모달
+  const [isLoginFailOpen, setIsLoginFailOpen] = useState(false);
+
   // 선택된 고객(이름만 말고 전체를 저장)
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
+    null
+  );
 
   // 로그인 진행 상태(중복 클릭 방지)
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,8 +39,10 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ 기존 alert 대신 로그인 실패 모달로 통일
     if (!id || !pw) {
-      alert("아이디와 비밀번호를 입력해주세요");
+      setIsLoginFailOpen(true);
       return;
     }
 
@@ -42,7 +55,7 @@ export default function Login() {
       setIsLoginModalOpen(true);
     } catch (err) {
       console.error(err);
-      alert("로그인 실패. 아이디/비밀번호를 확인해주세요.");
+      setIsLoginFailOpen(true); // ✅ 기존 alert 대신 모달
     } finally {
       setIsSubmitting(false);
     }
@@ -78,11 +91,11 @@ export default function Login() {
     <div className={styles.wrapper}>
       <div className={styles.blueArc} />
       <div className={styles.container}>
-        <div className={styles.title}>Log In</div>
+        <div className={styles.title}>QuickTax</div>
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
-            <div className={styles.label}>아이디</div>
+            <div className={styles.label}>세무사 관리번호</div>
             <input
               className={styles.input}
               value={id}
@@ -102,20 +115,41 @@ export default function Login() {
             />
           </div>
 
-          <button className={styles.button} type="submit" disabled={isSubmitting}>
+          <button
+            className={styles.button}
+            type="submit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "로그인 중..." : "로그인하기"}
           </button>
 
           <div className={styles.links}>
-            <button type="button" className={styles.link}>
+            <button
+              type="button"
+              className={styles.link}
+              onClick={() => setIsFindModalOpen(true)}
+            >
               아이디 / 비밀번호 찾기
             </button>
+
             <button type="button" className={styles.link}>
               회원가입
             </button>
           </div>
         </form>
       </div>
+
+      {/* ✅ 아이디/비밀번호 찾기 안내 모달 */}
+      <FindAccountModal
+        open={isFindModalOpen}
+        onClose={() => setIsFindModalOpen(false)}
+      />
+
+      {/* ✅ 로그인 실패 모달 */}
+      <LoginFailModal
+        open={isLoginFailOpen}
+        onClose={() => setIsLoginFailOpen(false)}
+      />
 
       {/* 1) 로그인 후 고객 선택 모달 */}
       <LoginModal
@@ -126,7 +160,6 @@ export default function Login() {
         closeOnBackdropClick={false}
         closeOnEsc={false}
       />
-
 
       {/* 2) StartModal */}
       <StartModal
@@ -144,7 +177,6 @@ export default function Login() {
         }}
       />
 
-
       {/* 3) HistoryModal */}
       <HistoryModal
         isOpen={isHistoryModalOpen}
@@ -155,7 +187,7 @@ export default function Login() {
 
           setIsHistoryModalOpen(false);
           navigate("/step1/confirm", {
-          state: { customerId: selectedCustomer.customerId },
+            state: { customerId: selectedCustomer.customerId },
           });
         }}
       />

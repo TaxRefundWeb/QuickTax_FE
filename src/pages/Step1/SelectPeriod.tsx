@@ -134,7 +134,7 @@ export default function SelectPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ customerId 가져오기 (state + sessionStorage)
+  // customerId 가져오기 (state + sessionStorage)
   const rawCustomerId =
     (location.state as PeriodNavState | null)?.customerId ??
     sessionStorage.getItem("customerId") ??
@@ -147,7 +147,7 @@ export default function SelectPeriod() {
   );
   console.log("[SelectPeriod] rawCustomerId =", rawCustomerId);
 
-  // ✅ 매우 안전한 파싱
+  // 매우 안전한 파싱
   const customerId = (() => {
     if (rawCustomerId === null || rawCustomerId === undefined) return null;
 

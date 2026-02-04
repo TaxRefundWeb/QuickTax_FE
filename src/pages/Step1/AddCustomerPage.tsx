@@ -25,7 +25,7 @@ type CreateCustomerRequest = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: number; // ✅ string -> number
+  final_fee_percent: number;
 };
 
 function onlyDigits(v: string) {
@@ -146,9 +146,9 @@ export default function AddCustomerPage() {
         alert("customerId를 응답에서 못 찾았어. 콘솔의 res 구조 확인 필요!");
         return;
       }
-      
+
       sessionStorage.setItem("customerId", String(customerId));
-      navigate("/step2/select-period", {
+      navigate("/step2/period", {
         state: { customerId },
       });
 

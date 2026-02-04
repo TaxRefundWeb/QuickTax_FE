@@ -146,13 +146,12 @@ export default function AddCustomerPage() {
         alert("customerId를 응답에서 못 찾았어. 콘솔의 res 구조 확인 필요!");
         return;
       }
-
+      
+      sessionStorage.setItem("customerId", String(customerId));
       navigate("/step2/select-period", {
-        state: {
-          customerId,
-          customerForm: form,
-        },
+        state: { customerId },
       });
+
     } catch (e) {
       console.error(e);
       alert("신규 고객 생성에 실패했어요. (콘솔 확인)");

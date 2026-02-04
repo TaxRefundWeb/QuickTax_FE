@@ -133,9 +133,11 @@ export default function SelectPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ state에서 customerId 받음 (string이어도 허용)
+  // state에서 customerId 받음 (string이어도 허용)
   const rawCustomerId =
-    (location.state as PeriodNavState | null)?.customerId ?? null;
+    (location.state as PeriodNavState | null)?.customerId ??
+    sessionStorage.getItem("customerId") ??
+    null;
 
   const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
 
@@ -148,9 +150,12 @@ export default function SelectPeriod() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ customerId 없으면 튕기기
+  // customerId 없으면 튕기기
   useEffect(() => {
-    if (Number.isFinite(customerId)) return;
+    if (Number.isFinite(customerId)) {
+      sessionStorage.setItem("customerId", String(customerId));
+      return;
+    }
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 

@@ -150,15 +150,19 @@ export default function HistoryModal({
         className="relative h-[752px] w-[1069px] overflow-hidden rounded-2xl bg-white shadow-[0_20px_70px_rgba(0,0,0,0.25)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* ✅ 우측 하단 X 버튼 */}
+        {/* 우측 하단 X 버튼 */}
         <button
           type="button"
-          onClick={onClose}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           aria-label="닫기"
-          className="absolute bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+          className="absolute top-6 right-6 z-20 flex h-12 w-12 items-center justify-center text-[28px] text-gray-600 hover:bg-gray-200"
         >
           ✕
         </button>
+
 
         {/* 상단 타이틀 */}
         <div className="pt-[56px] text-center">

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
-import LoginFailModal from "../../components/modal/LoginFailModal"; // ✅ 추가
+import LoginFailModal from "../../components/modal/LoginFailModal";
 import LoginModal from "../../components/modal/LoginModal";
 import StartModal from "../../components/modal/StartModal";
 import HistoryModal from "../../components/modal/HistoryModal";
@@ -24,7 +24,7 @@ export default function Login() {
   // 아이디/비밀번호 찾기 안내 모달
   const [isFindModalOpen, setIsFindModalOpen] = useState(false);
 
-  // ✅ 로그인 실패 모달
+  // 로그인 실패 모달
   const [isLoginFailOpen, setIsLoginFailOpen] = useState(false);
 
   // 선택된 고객(이름만 말고 전체를 저장)
@@ -40,7 +40,7 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ✅ 기존 alert 대신 로그인 실패 모달로 통일
+    // 기존 alert 대신 로그인 실패 모달로 통일
     if (!id || !pw) {
       setIsLoginFailOpen(true);
       return;
@@ -55,7 +55,7 @@ export default function Login() {
       setIsLoginModalOpen(true);
     } catch (err) {
       console.error(err);
-      setIsLoginFailOpen(true); // ✅ 기존 alert 대신 모달
+      setIsLoginFailOpen(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,13 +139,13 @@ export default function Login() {
         </form>
       </div>
 
-      {/* ✅ 아이디/비밀번호 찾기 안내 모달 */}
+      {/* 아이디/비밀번호 찾기 안내 모달 */}
       <FindAccountModal
         open={isFindModalOpen}
         onClose={() => setIsFindModalOpen(false)}
       />
 
-      {/* ✅ 로그인 실패 모달 */}
+      {/* 로그인 실패 모달 */}
       <LoginFailModal
         open={isLoginFailOpen}
         onClose={() => setIsLoginFailOpen(false)}

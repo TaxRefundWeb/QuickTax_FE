@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import styles from "./LoginModal.module.css";
 
 type StartModalProps = {
   open: boolean;
@@ -52,24 +51,19 @@ export default function StartModal({
         className="relative flex h-[500px] w-[764px] max-w-[92vw] items-center justify-center rounded-2xl bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ⬅ 뒤로가기 버튼 (LoginModal 화살표 버튼 스타일 재사용) */}
+        {/* 뒤로가기 버튼 */}
         <button
           type="button"
-          className={[
-            styles.arrowBtn,
-            styles.arrowActive,
-            "absolute left-4 top-4",
-          ].join(" ")}
-          onClick={(e) => {
+          onMouseDown={(e) => {
             e.stopPropagation();
             onBack();
           }}
           aria-label="고객 다시 선택"
+          className="absolute left-6 top-8 z-20 flex h-9 w-9 items-center justify-center text-gray hover:brightness-95 active:brightness-90"
         >
-          {/* 디자이너 SVG로 교체 (currentColor로 색상 연동) */}
           <svg
-            width="16"
-            height="16"
+            width="40"
+            height="40"
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"

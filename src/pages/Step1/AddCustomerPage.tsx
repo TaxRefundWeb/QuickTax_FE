@@ -135,13 +135,12 @@ export default function AddCustomerPage() {
       const res = await createCustomer(payload);
       console.log("createCustomer res:", res);
 
-      const customerId =
-        (res as any)?.customerId ??
-        (res as any)?.customer_id ??
-        (res as any)?.id ??
-        (res as any)?.data?.customerId ??
-        (res as any)?.data?.customer_id ??
-        null;
+      if (!res.isSuccess) {
+        alert(res.message || "신규 고객 생성에 실패했어요.");
+        return;
+      }
+
+      const customerId = res.result;
 
       if (!customerId) {
         alert("customerId를 응답에서 못 찾았어. 콘솔의 res 구조 확인 필요!");

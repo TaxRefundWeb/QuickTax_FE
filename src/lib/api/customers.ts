@@ -21,6 +21,13 @@ export type CreateCustomerRequest = {
 
 export type UpdateCustomerRequest = Partial<CreateCustomerRequest>;
 
+export type ApiResponse<T> = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result: T;
+};
+
 /**
  * 고객 목록 조회
  * GET /api/customers
@@ -34,8 +41,10 @@ export async function getCustomers() {
  * 신규 고객 등록
  * POST /api/customers/new
  */
-export async function createCustomer(body: CreateCustomerRequest) {
-  const res = await api.post("/customers/new", body);
+export async function createCustomer(
+  body: CreateCustomerRequest
+): Promise<ApiResponse<number>> {
+  const res = await api.post<ApiResponse<number>>("/customers/new", body);
   return res.data;
 }
 

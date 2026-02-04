@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getCustomer } from "../../lib/api/customers";
+import { getCustomer, patchCustomer } from "../../lib/api/customers";
 
 type CustomerForm = {
   name: string;
@@ -99,6 +99,30 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
   };
 }
 
+/** ✅ PATCH 바디로 변환 (서버 필드명) */
+function toPatchPayload(f: CustomerForm) {
+  const bankName = (f.bank === "custom" ? f.bankCustom : f.bank).trim();
+
+  return {
+    name: f.name.trim(),
+    rrn: onlyDigits(f.rrn), // 하이픈 제거
+    phone: onlyDigits(f.phone), // 하이픈 제거
+    address: f.address.trim(),
+    bank: bankName,
+    bank_number: onlyDigits(f.accountNumber).trim(),
+    nationality_code: f.nationalityCode.trim(),
+    nationality_name: f.nationality.trim(),
+    final_fee_percent: f.finalFee.trim(),
+  };
+}
+
+function stableStringify(obj: any) {
+  const keys = Object.keys(obj).sort();
+  const sorted: any = {};
+  for (const k of keys) sorted[k] = obj[k];
+  return JSON.stringify(sorted);
+}
+
 export default function ConfirmCustomerPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -119,6 +143,9 @@ export default function ConfirmCustomerPage() {
     finalFee: "",
   });
 
+  // ✅ GET으로 받아온 원본(비교용 / clean 상태 기준)
+  const [originalForm, setOriginalForm] = useState<CustomerForm | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -127,7 +154,7 @@ export default function ConfirmCustomerPage() {
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 
-  // 서버에서 고객정보 불러와서 폼 채우기
+  // 서버에서 고객정보 불러와서 폼 채우기 + original 저장
   useEffect(() => {
     if (typeof customerId !== "number") return;
 
@@ -139,15 +166,17 @@ export default function ConfirmCustomerPage() {
 
         const res = await getCustomer(customerId);
 
-        // res 구조가 ApiResponse 형태일 가능성이 높으니 방어적으로 꺼냄
         const customer: CustomerDetail =
           (res as any)?.result ??
           (res as any)?.data?.result ??
           (res as any)?.data ??
           (res as any);
 
+        const next = toCustomerFormFromServer(customer);
+
         if (!mounted) return;
-        setForm(toCustomerFormFromServer(customer));
+        setForm(next);
+        setOriginalForm(next);
       } catch (e) {
         console.error(e);
         alert("고객 정보를 불러오지 못했어요. (콘솔 확인)");
@@ -180,7 +209,7 @@ export default function ConfirmCustomerPage() {
 
   const isValid = useMemo(() => {
     const baseValid = Object.entries(form).every(([key, value]) => {
-      if (key === "bankCustom") return true; // custom일 때만 아래에서 체크
+      if (key === "bankCustom") return true;
       return value.trim() !== "";
     });
 
@@ -189,17 +218,55 @@ export default function ConfirmCustomerPage() {
     return true;
   }, [form]);
 
+  /** ✅ 변경 여부(dirty) */
+  const isDirty = useMemo(() => {
+    if (!originalForm) return false; // 로딩 중엔 false 취급
+    const a = toPatchPayload(originalForm);
+    const b = toPatchPayload(form);
+    return stableStringify(a) !== stableStringify(b);
+  }, [originalForm, form]);
+
+  /** ✅ 버튼 라벨 */
+  const buttonLabel = isDirty ? "수정완료" : "입력완료";
+
+  /** ✅ 버튼 동작
+   * - clean: 입력완료 → SelectPeriod 이동
+   * - dirty: 수정완료 → PATCH → GET(최신값 반영) → clean으로 복귀(페이지 stays)
+   */
   const handleSubmit = async () => {
-    if (!isValid || submitting) return;
+    if (!isValid || submitting || loading) return;
     if (typeof customerId !== "number") return;
 
+    // 상태1: 변동 없음 → 바로 이동
+    if (!isDirty) {
+      sessionStorage.setItem("customerId", String(customerId));
+      navigate("/step1/period", { state: { customerId } });
+      return;
+    }
+
+    // 상태2: 변경됨 → PATCH 후 최신값 GET으로 다시 세팅
     try {
       setSubmitting(true);
 
-      // 여기서는 “다음 단계로 이동”만. (수정 저장은 나중에 PATCH로)
-      navigate("/step1/period", {
-        state: { customerId },
-      });
+      const payload = toPatchPayload(form);
+      await patchCustomer(customerId, payload);
+
+      // ✅ PATCH 후 최신 값 다시 GET (DB 기준으로 화면 반영)
+      const res = await getCustomer(customerId);
+      const customer: CustomerDetail =
+        (res as any)?.result ??
+        (res as any)?.data?.result ??
+        (res as any)?.data ??
+        (res as any);
+
+      const next = toCustomerFormFromServer(customer);
+      setForm(next);
+      setOriginalForm(next); // ✅ clean 상태로 복귀
+
+      alert("수정이 완료되었습니다.");
+    } catch (e) {
+      console.error(e);
+      alert("고객 정보 수정(PATCH)에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -297,7 +364,6 @@ export default function ConfirmCustomerPage() {
                       return {
                         ...prev,
                         bank: "custom",
-                        // ✅ custom으로 바꾸면 기존 선택값을 bankCustom에 복사해두기(빈값이면)
                         bankCustom: prev.bankCustom.trim()
                           ? prev.bankCustom
                           : prev.bank && prev.bank !== "custom"
@@ -306,7 +372,6 @@ export default function ConfirmCustomerPage() {
                       };
                     }
 
-                    // ✅ 일반 옵션 선택하면 custom 입력값 비우기
                     return {
                       ...prev,
                       bank: value,
@@ -404,7 +469,7 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 입력완료 */}
+          {/* 버튼 */}
           <div className="pt-11 flex justify-end">
             <button
               type="button"
@@ -417,7 +482,7 @@ export default function ConfirmCustomerPage() {
                   : "border-gray-200 text-gray-400 cursor-not-allowed",
               ].join(" ")}
             >
-              {submitting ? "저장 중..." : "수정완료"}
+              {submitting ? "처리 중..." : buttonLabel}
             </button>
           </div>
         </form>

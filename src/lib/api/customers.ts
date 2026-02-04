@@ -61,11 +61,20 @@ export async function getCustomer(customerId: number) {
  * 고객 기본정보 수정
  * PATCH /api/customers/{customerId}
  */
-export async function updateCustomer(
-  customerId: number,
-  body: UpdateCustomerRequest
-) {
-  const res = await api.patch(`/customers/${customerId}`, body);
+export type PatchCustomerPayload = {
+  name: string;
+  rrn: string;
+  phone: string;
+  address: string;
+  bank: string;
+  bank_number: string;
+  nationality_code: string;
+  nationality_name: string;
+  final_fee_percent: number;
+};
+
+export async function patchCustomer(customerId: number, body: PatchCustomerPayload) {
+  const res = await api.patch(`/api/customers/${customerId}`, body);
   return res.data;
 }
 

@@ -105,14 +105,15 @@ function YearRadioDropdown({
                       "flex h-4 w-4 items-center justify-center rounded-full border",
                       checked ? "border-[#2563EB]" : "border-gray-300",
                     ].join(" ")}
-                    aria-hidden="true"
                   >
                     {checked && (
                       <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
                     )}
                   </span>
 
-                  <span className={checked ? "text-[#2563EB]" : "text-gray-600"}>
+                  <span
+                    className={checked ? "text-[#2563EB]" : "text-gray-600"}
+                  >
                     {y}
                   </span>
                 </button>
@@ -133,13 +134,31 @@ export default function SelectPeriod() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // state에서 customerId 받음 (string이어도 허용)
+  // ✅ customerId 가져오기 (state + sessionStorage)
   const rawCustomerId =
     (location.state as PeriodNavState | null)?.customerId ??
     sessionStorage.getItem("customerId") ??
     null;
 
-  const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
+  console.log("[SelectPeriod] location.state =", location.state);
+  console.log(
+    "[SelectPeriod] session customerId =",
+    sessionStorage.getItem("customerId")
+  );
+  console.log("[SelectPeriod] rawCustomerId =", rawCustomerId);
+
+  // ✅ 매우 안전한 파싱
+  const customerId = (() => {
+    if (rawCustomerId === null || rawCustomerId === undefined) return null;
+
+    const s = String(rawCustomerId).trim();
+    if (!s || s === "null" || s === "undefined" || s === "NaN") return null;
+
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  })();
+
+  console.log("[SelectPeriod] parsed customerId =", customerId);
 
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
@@ -150,12 +169,17 @@ export default function SelectPeriod() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  // customerId 없으면 튕기기
+  // ✅ customerId 검증 + 리다이렉트
   useEffect(() => {
-    if (Number.isFinite(customerId)) {
+    console.log("[SelectPeriod] effect customerId =", customerId);
+
+    if (customerId !== null) {
       sessionStorage.setItem("customerId", String(customerId));
       return;
     }
+
+    sessionStorage.removeItem("customerId");
+    console.log("[SelectPeriod] redirect to / (invalid customerId)");
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 
@@ -165,8 +189,7 @@ export default function SelectPeriod() {
   }, [startYear, endYear, claimDate]);
 
   const handleSubmit = async () => {
-    if (!isValid) return;
-    if (!Number.isFinite(customerId)) return;
+    if (!isValid || customerId === null) return;
 
     try {
       setSubmitting(true);
@@ -176,7 +199,6 @@ export default function SelectPeriod() {
         claim_to: `${endYear}-12-31`,
       });
 
-      // ✅ 다음 페이지에도 customerId로 넘김
       navigate("/step1/existing", {
         state: {
           customerId,
@@ -188,9 +210,7 @@ export default function SelectPeriod() {
       });
     } catch (e) {
       console.error(e);
-      alert(
-        "기간 선택 요청(refund-selection)에 실패했습니다. 잠시 후 다시 시도해주세요."
-      );
+      alert("기간 선택 요청에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -214,7 +234,9 @@ export default function SelectPeriod() {
 
           <form onSubmit={(e) => e.preventDefault()}>
             <div className="grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
-              <label className="text-[20px] text-[#595959]">경정청구 기간</label>
+              <label className="text-[20px] text-[#595959]">
+                경정청구 기간
+              </label>
               <div />
               <div />
               <div />
@@ -238,6 +260,7 @@ export default function SelectPeriod() {
                 onChange={setEndYear}
                 options={YEAR_OPTIONS}
               />
+
               <div />
 
               <input

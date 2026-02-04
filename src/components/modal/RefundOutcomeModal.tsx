@@ -19,9 +19,11 @@ type RefundOutcomeModalProps = {
   /** review에서 "확정" 눌렀을 때 */
   onConfirm: () => void;
 
-  /** completed에서 다운로드 버튼 */
+  /** completed에서 PDF 버튼 */
   onDownloadPdf?: () => void;
-  onDownloadZip?: () => void;
+
+  /** completed에서 "고객 선택하기" 버튼 */
+  onSelectCustomer?: () => void;
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -36,7 +38,7 @@ export default function RefundOutcomeModal({
   pdfFile = null,
   onConfirm,
   onDownloadPdf,
-  onDownloadZip,
+  onSelectCustomer,
 }: RefundOutcomeModalProps) {
   const [pageCount, setPageCount] = useState(1);
   const [page, setPage] = useState(1);
@@ -71,9 +73,7 @@ export default function RefundOutcomeModal({
   }, [step]);
 
   const subtitle = useMemo(() => {
-    return step === "review"
-      ? "확인 및 수정한 다음 확정버튼을 눌러주세요"
-      : "";
+    return step === "review" ? "확인 및 수정한 다음 확정버튼을 눌러주세요" : "";
   }, [step]);
 
   if (!isOpen) return null;
@@ -96,7 +96,7 @@ export default function RefundOutcomeModal({
         </div>
 
         {/* 왼쪽 썸네일 */}
-        <div className="absolute left-[120px] top-[144px] w-[120px] flex justify-center">
+        <div className="absolute left-[120px] top-[144px] flex w-[120px] justify-center">
           <div className="space-y-4">
             {Array.from({ length: pageCount }).map((_, idx) => {
               const p = idx + 1;
@@ -108,9 +108,7 @@ export default function RefundOutcomeModal({
                   onClick={() => setPage(p)}
                   className={cn(
                     "h-[107px] w-[82px] rounded-[6px] border bg-gray-50",
-                    active
-                      ? "border-[#64A5FF] bg-blue-50"
-                      : "border-gray-200"
+                    active ? "border-[#64A5FF] bg-blue-50" : "border-gray-200"
                   )}
                   aria-label={`${p}페이지 보기`}
                 />
@@ -121,7 +119,7 @@ export default function RefundOutcomeModal({
 
         {/* 가운데 PDF */}
         <div className="absolute left-1/2 top-[128px] -translate-x-1/2">
-          <div className="rounded-[8px] border border-gray-200 bg-white h-[640px] w-[487px] flex items-center justify-center">
+          <div className="flex h-[640px] w-[487px] items-center justify-center rounded-[8px] border border-gray-200 bg-white">
             {!pdfFile ? (
               <div className="text-gray-400">PDF 미리보기(더미)</div>
             ) : (
@@ -143,7 +141,7 @@ export default function RefundOutcomeModal({
         <div className="absolute right-[30px] top-[128px] h-[640px] w-[260px]">
           {step === "review" ? (
             <div className="flex h-full flex-col items-center justify-end">
-              <div className="w-[200px] text-left ml-14">
+              <div className="ml-14 w-[200px] text-left">
                 <div className="text-[18px] font-semibold text-gray-800">
                   최종 환급액
                 </div>
@@ -166,16 +164,17 @@ export default function RefundOutcomeModal({
               <button
                 type="button"
                 onClick={onDownloadPdf}
-                className="h-[40px] w-[138px] rounded-[8px] border border-gray-200 bg-white text-[12px] font-semibold text-gray-800 hover:bg-gray-50"
+                className="h-[40px] w-[138px] rounded-[8px] border border-gray-200 bg-white text-[12px] text-gray-800 hover:bg-gray-50"
               >
                 PDF 출력하기
               </button>
+
               <button
                 type="button"
-                onClick={onDownloadZip}
-                className="h-[40px] w-[138px] rounded-[8px] border border-gray-200 bg-white text-[12px] font-semibold text-gray-800 hover:bg-gray-50"
+                onClick={onSelectCustomer}
+                className="h-[40px] w-[138px] rounded-[8px] bg-[#0061FE] text-[12px] text-white hover:brightness-95 active:brightness-90"
               >
-                zip 파일 다운로드
+                고객 선택하기
               </button>
             </div>
           )}

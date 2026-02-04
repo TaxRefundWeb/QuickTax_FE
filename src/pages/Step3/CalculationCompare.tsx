@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom"; // ✅ 추가
 import CalculationCard from "../../components/card/CalculationCard";
 import RefundOutcomeModal, {
   type RefundOutcomeStep,
@@ -59,6 +60,8 @@ function YearTabs({
 }
 
 export default function CalculationCompare({ customerId, year }: Props) {
+  const navigate = useNavigate();
+
   const fallbackCustomer = customersDummy[0] ?? null;
 
   const customer = useMemo(
@@ -119,7 +122,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
     });
   }, [years, bestPlanId]);
 
-  // 2) 탭(연도) 바꿨을 때도 혹시 값이 없으면 best로 채움dddd
   useEffect(() => {
     if (activeYear === null || !bestPlanId) return;
     setPickedPlanIdByYear((prev) => {
@@ -133,7 +135,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
     const picked = pickedPlanIdByYear[activeYear] ?? null;
 
     if (picked && plans.some((p) => p.id === picked)) return picked;
-
     if (bestPlanId) return bestPlanId;
 
     return null;
@@ -179,7 +180,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
             />
           </div>
 
-          {/* 큰 네모 컨테이너 */}
           <div
             className={cn(
               "rounded-[12px] rounded-tl-none border border-gray-200 bg-white",
@@ -187,7 +187,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
               "shadow-[0_1px_10px_rgba(0,0,0,0.04)]"
             )}
           >
-            {/* 카드 영역 */}
             <div className="flex justify-center gap-10">
               {plans.map((plan) => {
                 const isSelected = plan.id === selectedPlanId;
@@ -208,7 +207,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
                       />
                     </button>
 
-                    {/* 아래 체크 버튼 */}
                     <button
                       type="button"
                       onClick={() => onPickPlan(plan.id)}
@@ -246,7 +244,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
             </div>
           </div>
 
-          {/* 선택 완료 버튼 */}
           <div className="mt-8 mb-8 flex justify-end">
             <button
               type="button"
@@ -264,7 +261,6 @@ export default function CalculationCompare({ customerId, year }: Props) {
           </div>
         </div>
 
-        {/* Step4 모달 연결 */}
         <RefundOutcomeModal
           isOpen={isOutcomeOpen}
           step={outcomeStep}
@@ -273,7 +269,10 @@ export default function CalculationCompare({ customerId, year }: Props) {
           pdfFile={null}
           onConfirm={() => setOutcomeStep("completed")}
           onDownloadPdf={() => console.log("PDF 출력하기")}
-          onDownloadZip={() => console.log("ZIP 파일 다운로드")}
+          onSelectCustomer={() => {
+            setIsOutcomeOpen(false);
+            navigate("/");
+          }}
         />
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 
@@ -12,6 +12,9 @@ import type { Customer } from "../../lib/api/customers";
 
 // 로그인 API
 import { login } from "../../lib/api/auth";
+
+// 로그인 상태 확인용 (쿠키 살아있으면 성공)
+import { getCustomers } from "../../lib/api/customers";
 
 export default function Login() {
   const [id, setId] = useState("");
@@ -35,7 +38,34 @@ export default function Login() {
   // 로그인 진행 상태(중복 클릭 방지)
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // 자동 로그인 체크(원하면 로딩 표시도 가능)
+  const [isAutoChecking, setIsAutoChecking] = useState(true);
+
   const navigate = useNavigate();
+
+  // 페이지 진입 시: 쿠키가 살아있으면 바로 고객 선택 모달 오픈
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        // 쿠키 인증이 유효하면 성공(200)할 가능성이 높음
+        await getCustomers();
+
+        if (!alive) return;
+        setIsLoginModalOpen(true);
+      } catch {
+        // 로그인 안 됐으면 그냥 로그인 폼 유지
+      } finally {
+        if (!alive) return;
+        setIsAutoChecking(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +123,7 @@ export default function Login() {
       <div className={styles.container}>
         <div className={styles.title}>QuickTax</div>
 
+        {/* 자동 체크 중엔 버튼 비활성화 정도만 (UI 바꾸기 싫으면 이 줄은 없어도 됨) */}
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>
             <div className={styles.label}>세무사 관리번호</div>
@@ -101,6 +132,7 @@ export default function Login() {
               value={id}
               onChange={(e) => setId(e.target.value)}
               autoComplete="username"
+              disabled={isAutoChecking}
             />
           </div>
 
@@ -112,15 +144,20 @@ export default function Login() {
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               autoComplete="current-password"
+              disabled={isAutoChecking}
             />
           </div>
 
           <button
             className={styles.button}
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isAutoChecking}
           >
-            {isSubmitting ? "로그인 중..." : "로그인하기"}
+            {isAutoChecking
+              ? "로그인 상태 확인 중..."
+              : isSubmitting
+              ? "로그인 중..."
+              : "로그인하기"}
           </button>
 
           <div className={styles.links}>
@@ -128,11 +165,12 @@ export default function Login() {
               type="button"
               className={styles.link}
               onClick={() => setIsFindModalOpen(true)}
+              disabled={isAutoChecking}
             >
               아이디 / 비밀번호 찾기
             </button>
 
-            <button type="button" className={styles.link}>
+            <button type="button" className={styles.link} disabled={isAutoChecking}>
               회원가입
             </button>
           </div>

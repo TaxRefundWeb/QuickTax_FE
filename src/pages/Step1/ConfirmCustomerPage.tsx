@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getCustomer, patchCustomer } from "../../lib/api/customers";
+import { patchCustomer } from "../../lib/api/customers";
 import { api } from "../../lib/api/client";
 
 

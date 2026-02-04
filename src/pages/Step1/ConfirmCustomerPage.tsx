@@ -7,8 +7,8 @@ type CustomerForm = {
   rrn: string;
   phone: string;
   address: string;
-  bank: string;
-  bankCustom: string;      // UI에서 "직접 입력"일 때만 사용
+  bank: string; // select 값 (옵션 or "custom")
+  bankCustom: string; // UI에서 "직접 입력"일 때만 사용
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
@@ -23,7 +23,7 @@ type CustomerDetail = {
   rrn: string;
   phone: string;
   address: string;
-  bank: string;
+  bank: string; // 서버는 직접입력 은행명도 여기로 내려올 수 있음
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
@@ -55,15 +55,43 @@ function formatPhone(value: string) {
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 
-// 서버 → UI폼 매핑
+/** ✅ 은행 옵션(드롭다운에 있는 값들) */
+const BANK_OPTIONS = [
+  "KB국민",
+  "신한",
+  "우리",
+  "하나",
+  "NH농협",
+  "IBK기업",
+  "카카오뱅크",
+  "토스뱅크",
+] as const;
+
+function isKnownBank(bank: string) {
+  return BANK_OPTIONS.includes(bank as any);
+}
+
+// ✅ 서버 → UI폼 매핑 (직접입력 자동 처리)
 function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
+  const serverBank = (c.bank ?? "").trim();
+
+  // 옵션에 있으면 그대로, 없으면 custom으로 돌리고 bankCustom에 서버 값을 넣기
+  const bank =
+    serverBank && isKnownBank(serverBank)
+      ? serverBank
+      : serverBank
+      ? "custom"
+      : "";
+
+  const bankCustom = bank === "custom" ? serverBank : "";
+
   return {
     name: c.name ?? "",
     rrn: formatRRN(c.rrn ?? ""),
     phone: formatPhone(c.phone ?? ""),
     address: c.address ?? "",
-    bank: c.bank ?? "",
-    bankCustom: "", // 서버 bank가 "직접 입력"인지 구분이 없으면 일단 비워둠
+    bank,
+    bankCustom,
     accountNumber: c.bank_number ?? "",
     nationalityCode: c.nationality_code ?? "",
     nationality: c.nationality_name ?? "",
@@ -110,6 +138,7 @@ export default function ConfirmCustomerPage() {
         setLoading(true);
 
         const res = await getCustomer(customerId);
+
         // res 구조가 ApiResponse 형태일 가능성이 높으니 방어적으로 꺼냄
         const customer: CustomerDetail =
           (res as any)?.result ??
@@ -151,7 +180,7 @@ export default function ConfirmCustomerPage() {
 
   const isValid = useMemo(() => {
     const baseValid = Object.entries(form).every(([key, value]) => {
-      if (key === "bankCustom") return true;
+      if (key === "bankCustom") return true; // custom일 때만 아래에서 체크
       return value.trim() !== "";
     });
 
@@ -193,7 +222,9 @@ export default function ConfirmCustomerPage() {
         </h1>
 
         {loading && (
-          <div className="mb-6 text-sm text-gray-500">고객 정보를 불러오는 중...</div>
+          <div className="mb-6 text-sm text-gray-500">
+            고객 정보를 불러오는 중...
+          </div>
         )}
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
@@ -266,6 +297,7 @@ export default function ConfirmCustomerPage() {
                       return {
                         ...prev,
                         bank: "custom",
+                        // ✅ custom으로 바꾸면 기존 선택값을 bankCustom에 복사해두기(빈값이면)
                         bankCustom: prev.bankCustom.trim()
                           ? prev.bankCustom
                           : prev.bank && prev.bank !== "custom"
@@ -274,6 +306,7 @@ export default function ConfirmCustomerPage() {
                       };
                     }
 
+                    // ✅ 일반 옵션 선택하면 custom 입력값 비우기
                     return {
                       ...prev,
                       bank: value,

@@ -12,7 +12,7 @@ type Option = { value: string; label: string };
 type PeriodState = {
   startYear?: string;
   endYear?: string;
-  customerid?: number; // ✅ number로 유지
+  customerId?: number | string;
 };
 
 type RadioDropdownProps = {
@@ -114,15 +114,11 @@ function RadioDropdown({
                   ].join(" ")}
                   aria-hidden="true"
                 >
-                  {selected && (
-                    <span className="h-2 w-2 rounded-full bg-blue-500" />
-                  )}
+                  {selected && <span className="h-2 w-2 rounded-full bg-blue-500" />}
                 </span>
 
                 <span
-                  className={
-                    selected ? "font-medium text-blue-600" : "text-gray-700"
-                  }
+                  className={selected ? "font-medium text-blue-600" : "text-gray-700"}
                 >
                   {opt.label}
                 </span>
@@ -172,8 +168,8 @@ type YearForm = {
   workplaces: WorkPlace[];
 
   // 세액 감면 및 서류 정보
-  reduceStart: string | null; // 연도("2020") 선택
-  reduceEnd: string | null; // 연도("2025") 선택
+  reduceStart: string | null; // 연도("2020")
+  reduceEnd: string | null; // 연도("2025")
   docDate: string; // YYYY-MM-DD
 
   // 인적 공제
@@ -223,8 +219,7 @@ function isYearFormValid(f: YearForm) {
 
   const childrenDetailValid =
     f.child !== "yes" ||
-    (f.children.length > 0 &&
-      f.children.every((c) => c.name.trim() && c.rrn.trim()));
+    (f.children.length > 0 && f.children.every((c) => c.name.trim() && c.rrn.trim()));
 
   return Boolean(
     allWorkplacesValid &&
@@ -237,9 +232,6 @@ function isYearFormValid(f: YearForm) {
   );
 }
 
-/** =========================
- *  payload helpers (정답 버전)
- *  ========================= */
 const normalizeBizNo = (s: string) => s.replaceAll("-", "").trim();
 const normalizeRrn = (s: string) => s.replaceAll("-", "").trim();
 
@@ -248,7 +240,6 @@ function toYesNo(v: string | null) {
   return v === "yes" ? "yes" : "no";
 }
 
-// "2020" -> "2020-01-01" / "2020-12-31"
 function yearToDateStart(year: string | null) {
   return year ? `${year}-01-01` : "";
 }
@@ -256,6 +247,7 @@ function yearToDateEnd(year: string | null) {
   return year ? `${year}-12-31` : "";
 }
 
+/* API payload만 customerid(소문자) */
 function buildRefundClaimPayload(args: {
   customerid: number;
   years: number[];
@@ -289,7 +281,7 @@ function buildRefundClaimPayload(args: {
         child_list:
           f.child === "yes"
             ? f.children.map((c) => ({
-                child_yn: "yes", // ✅ 백 검증 로직 맞춤
+                child_yn: "yes", // 백 검증 로직 맞춤
                 child_name: c.name.trim(),
                 child_RRN: normalizeRrn(c.rrn),
               }))
@@ -306,19 +298,22 @@ export default function ExistingCustomerPage() {
   const period = (location.state as PeriodState | null) ?? null;
   const startYear = period?.startYear ?? "";
   const endYear = period?.endYear ?? "";
-  const customerid = period?.customerid;
+
+  /* 라우팅 customerId */
+  const rawCustomerId = period?.customerId ?? null;
+  const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
 
   useEffect(() => {
     if (!startYear || !endYear) {
       navigate("/step1/period", { replace: true });
       return;
     }
-    if (!Number.isFinite(customerid)) {
+    if (!Number.isFinite(customerId)) {
       alert("고객 ID가 없습니다. 고객 선택부터 다시 진행해주세요.");
       navigate("/", { replace: true });
       return;
     }
-  }, [startYear, endYear, customerid, navigate]);
+  }, [startYear, endYear, customerId, navigate]);
 
   const yearList = useMemo(
     () => yearsInRange(startYear, endYear),
@@ -420,11 +415,11 @@ export default function ExistingCustomerPage() {
 
   const handleFinalSubmit = async () => {
     if (!allValid) return;
-    if (!Number.isFinite(customerid)) return;
+    if (!Number.isFinite(customerId)) return;
 
     try {
       const payload = buildRefundClaimPayload({
-        customerid: customerid!,
+        customerid: customerId!, // payload만 소문자
         years: openYears,
         formsByYear,
       });
@@ -433,7 +428,7 @@ export default function ExistingCustomerPage() {
 
       navigate("/step2/ocr-compare", {
         state: {
-          period: { startYear, endYear, customerid },
+          period: { startYear, endYear, customerId }, // 라우팅은 customerId
           years: openYears.map(String),
           formsByYear,
           refundClaimResult: res,
@@ -448,9 +443,7 @@ export default function ExistingCustomerPage() {
   return (
     <div className="w-full">
       <div className="mx-auto w-[944px] pb-8">
-        <h1 className="mb-2 text-[24px] font-bold text-gray-900">
-          경정청구 신청
-        </h1>
+        <h1 className="mb-2 text-[24px] font-bold text-gray-900">경정청구 신청</h1>
         <p className="mb-6 text-[14px] text-gray-500">
           {startYear && endYear
             ? `선택하신 ${startYear}~${endYear}년에 대한 상세 정보를 아래에 입력해 주세요.`
@@ -523,9 +516,7 @@ export default function ExistingCustomerPage() {
                             <input
                               value={w.corpName}
                               onChange={(e) =>
-                                updateWorkPlace(idx, {
-                                  corpName: e.target.value,
-                                })
+                                updateWorkPlace(idx, { corpName: e.target.value })
                               }
                               className="h-[48px] w-[177px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                             />
@@ -540,9 +531,7 @@ export default function ExistingCustomerPage() {
                                 type="date"
                                 value={w.workStart}
                                 onChange={(e) =>
-                                  updateWorkPlace(idx, {
-                                    workStart: e.target.value,
-                                  })
+                                  updateWorkPlace(idx, { workStart: e.target.value })
                                 }
                                 className="h-[48px] w-[132px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
@@ -551,9 +540,7 @@ export default function ExistingCustomerPage() {
                                 type="date"
                                 value={w.workEnd}
                                 onChange={(e) =>
-                                  updateWorkPlace(idx, {
-                                    workEnd: e.target.value,
-                                  })
+                                  updateWorkPlace(idx, { workEnd: e.target.value })
                                 }
                                 className="h-[48px] w-full rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
@@ -652,9 +639,7 @@ export default function ExistingCustomerPage() {
                     <input
                       type="date"
                       value={currentForm.docDate}
-                      onChange={(e) =>
-                        updateCurrent({ docDate: e.target.value })
-                      }
+                      onChange={(e) => updateCurrent({ docDate: e.target.value })}
                       className="h-[48px] w-[177px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                     />
                   </div>
@@ -690,9 +675,7 @@ export default function ExistingCustomerPage() {
                         </label>
                         <input
                           value={currentForm.spouseName}
-                          onChange={(e) =>
-                            updateCurrent({ spouseName: e.target.value })
-                          }
+                          onChange={(e) => updateCurrent({ spouseName: e.target.value })}
                           className="h-[48px] w-[100px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                         />
                       </div>
@@ -702,9 +685,7 @@ export default function ExistingCustomerPage() {
                         </label>
                         <input
                           value={currentForm.spouseRrn}
-                          onChange={(e) =>
-                            updateCurrent({ spouseRrn: e.target.value })
-                          }
+                          onChange={(e) => updateCurrent({ spouseRrn: e.target.value })}
                           className="h-[48px] w-[294px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                         />
                       </div>
@@ -729,19 +710,14 @@ export default function ExistingCustomerPage() {
                     <>
                       <div className="space-y-6 max-w-[520px]">
                         {currentForm.children.map((c, idx) => (
-                          <div
-                            key={idx}
-                            className="grid grid-cols-2 gap-x-10 gap-y-6"
-                          >
+                          <div key={idx} className="grid grid-cols-2 gap-x-10 gap-y-6">
                             <div>
                               <label className="mb-2 block text-[12px] text-gray-500">
                                 {`자녀 ${idx + 1} 이름`}
                               </label>
                               <input
                                 value={c.name}
-                                onChange={(e) =>
-                                  updateChild(idx, { name: e.target.value })
-                                }
+                                onChange={(e) => updateChild(idx, { name: e.target.value })}
                                 className="h-[48px] w-[100px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
                             </div>
@@ -751,9 +727,7 @@ export default function ExistingCustomerPage() {
                               </label>
                               <input
                                 value={c.rrn}
-                                onChange={(e) =>
-                                  updateChild(idx, { rrn: e.target.value })
-                                }
+                                onChange={(e) => updateChild(idx, { rrn: e.target.value })}
                                 className="h-[48px] w-[294px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
                             </div>

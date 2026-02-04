@@ -99,7 +99,7 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
   };
 }
 
-/** ✅ PATCH 바디로 변환 (서버 필드명) */
+/** PATCH 바디로 변환 (서버 필드명) */
 function toPatchPayload(f: CustomerForm) {
   const bankName = (f.bank === "custom" ? f.bankCustom : f.bank).trim();
 
@@ -112,7 +112,7 @@ function toPatchPayload(f: CustomerForm) {
     bank_number: onlyDigits(f.accountNumber).trim(),
     nationality_code: f.nationalityCode.trim(),
     nationality_name: f.nationality.trim(),
-    final_fee_percent: f.finalFee.trim(),
+    final_fee_percent: Number(f.finalFee.replace(/[^\d.]/g, "")),
   };
 }
 

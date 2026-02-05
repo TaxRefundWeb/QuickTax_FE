@@ -57,7 +57,7 @@ function formatPhone(value: string) {
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 
-/** ✅ 은행 옵션(드롭다운에 있는 값들) */
+/** 은행 옵션(드롭다운에 있는 값들) */
 const BANK_OPTIONS = [
   "KB국민",
   "신한",
@@ -73,7 +73,7 @@ function isKnownBank(bank: string) {
   return BANK_OPTIONS.includes(bank as any);
 }
 
-// ✅ 서버 → UI폼 매핑 (직접입력 자동 처리)
+// 서버 → UI폼 매핑 (직접입력 자동 처리)
 function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
   const serverBank = (c.bank ?? "").trim();
 
@@ -145,7 +145,7 @@ export default function ConfirmCustomerPage() {
     finalFee: "",
   });
 
-  // ✅ GET으로 받아온 원본(비교용 / clean 상태 기준)
+  // GET으로 받아온 원본(비교용 / clean 상태 기준)
   const [originalForm, setOriginalForm] = useState<CustomerForm | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -216,7 +216,7 @@ export default function ConfirmCustomerPage() {
     return true;
   }, [form]);
 
-  /** ✅ 변경 여부(dirty) */
+  /** 변경 여부(dirty) */
   const isDirty = useMemo(() => {
     if (!originalForm) return false; // 로딩 중엔 false 취급
     const a = toPatchPayload(originalForm);
@@ -224,10 +224,10 @@ export default function ConfirmCustomerPage() {
     return stableStringify(a) !== stableStringify(b);
   }, [originalForm, form]);
 
-  /** ✅ 버튼 라벨 */
+  /** 버튼 라벨 */
   const buttonLabel = isDirty ? "수정완료" : "입력완료";
 
-  /** ✅ 버튼 동작
+  /** 버튼 동작
    * - clean: 입력완료 → SelectPeriod 이동
    * - dirty: 수정완료 → PATCH → GET(최신값 반영) → clean으로 복귀(페이지 stays)
    */
@@ -255,7 +255,7 @@ export default function ConfirmCustomerPage() {
 
       const next = toCustomerFormFromServer(customer);
       setForm(next);
-      setOriginalForm(next); // ✅ clean 상태로 복귀
+      setOriginalForm(next); // clean 상태로 복귀
 
       alert("수정이 완료되었습니다.");
     } catch (e) {

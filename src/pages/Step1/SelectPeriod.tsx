@@ -111,9 +111,7 @@ function YearRadioDropdown({
                     )}
                   </span>
 
-                  <span
-                    className={checked ? "text-[#2563EB]" : "text-gray-600"}
-                  >
+                  <span className={checked ? "text-[#2563EB]" : "text-gray-600"}>
                     {y}
                   </span>
                 </button>
@@ -167,9 +165,13 @@ export default function SelectPeriod() {
     new Date().toISOString().slice(0, 10)
   );
 
+  // 감면 기간(필수)
+  const [reduceStart, setReduceStart] = useState<string>("");
+  const [reduceEnd, setReduceEnd] = useState<string>("");
+
   const [submitting, setSubmitting] = useState(false);
 
-  // ✅ customerId 검증 + 리다이렉트
+  // customerId 검증 + 리다이렉트
   useEffect(() => {
     console.log("[SelectPeriod] effect customerId =", customerId);
 
@@ -185,8 +187,14 @@ export default function SelectPeriod() {
 
   const isValid = useMemo(() => {
     if (!startYear || !endYear || !claimDate) return false;
-    return Number(startYear) <= Number(endYear);
-  }, [startYear, endYear, claimDate]);
+    if (Number(startYear) > Number(endYear)) return false;
+
+    // 감면기간은 무조건 필수
+    if (!reduceStart || !reduceEnd) return false;
+    if (reduceStart > reduceEnd) return false;
+
+    return true;
+  }, [startYear, endYear, claimDate, reduceStart, reduceEnd]);
 
   const handleSubmit = async () => {
     if (!isValid || customerId === null) return;
@@ -205,6 +213,8 @@ export default function SelectPeriod() {
           startYear,
           endYear,
           claimDate,
+          reduceStart,
+          reduceEnd,
           refundSelectionResult: res?.result ?? null,
         },
       });
@@ -219,6 +229,9 @@ export default function SelectPeriod() {
   const showYearError =
     !!startYear && !!endYear && Number(startYear) > Number(endYear);
 
+  const showReduceOrderError =
+    !!reduceStart && !!reduceEnd && reduceStart > reduceEnd;
+
   return (
     <div className="w-full">
       <div className="mx-auto w-full max-w-[920px]">
@@ -227,12 +240,13 @@ export default function SelectPeriod() {
             경정청구 신청
           </h1>
 
-          <p className="mb-[120px] text-[16px] text-gray-500">
+          <p className="mb-[90px] text-[16px] text-gray-500">
             경정청구를 신청할 기간을 선택해 주세요 <br />
             기간을 선택하면 상세 입력창이 나타납니다.
           </p>
 
           <form onSubmit={(e) => e.preventDefault()}>
+            {/* 라벨 row */}
             <div className="grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
               <label className="text-[20px] text-[#595959]">
                 경정청구 기간
@@ -240,10 +254,11 @@ export default function SelectPeriod() {
               <div />
               <div />
               <div />
-              <label className="text-[20px] text-[#595959]">청구 일자</label>
+              <label className="ml-8 text-[20px] text-[#595959]">청구 일자</label>
               <div />
             </div>
 
+            {/* 입력 */}
             <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
               <YearRadioDropdown
                 value={startYear}
@@ -268,26 +283,14 @@ export default function SelectPeriod() {
                 value={claimDate}
                 onChange={(e) => setClaimDate(e.target.value)}
                 className={[
-                  "h-[64px] w-[181px]",
+                  "ml-8 h-[64px] w-[181px]",
                   "rounded-[4px] border bg-[#FAFAFA] px-4",
                   "text-[18px] text-gray-700 outline-none",
                   "border-gray-200 focus:border-[#64A5FF]",
                 ].join(" ")}
               />
 
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!isValid || submitting}
-                className={[
-                  "h-[48px] w-[181px] rounded-lg border text-base font-medium shadow-sm transition-colors bg-white",
-                  isValid && !submitting
-                    ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
-                    : "border-gray-200 text-gray-400 cursor-not-allowed",
-                ].join(" ")}
-              >
-                {submitting ? "처리 중..." : "입력완료"}
-              </button>
+              <div />
             </div>
 
             <p
@@ -297,6 +300,74 @@ export default function SelectPeriod() {
               ].join(" ")}
             >
               시작 연도는 종료 연도보다 작아야 합니다.
+            </p>
+
+            {/* 감면 기간 라벨 */}
+            <div className="mt-8 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
+              <label className="text-[20px] text-[#595959]">감면 기간</label>
+              <div />
+              <div />
+              <div />
+              <div />
+              <div />
+            </div>
+
+            {/* 감면 기간 입력 row + 입력완료 버튼 */}
+            <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
+              <input
+                type="date"
+                value={reduceStart}
+                onChange={(e) => setReduceStart(e.target.value)}
+                className={[
+                  "h-[64px] w-[200px]",
+                  "rounded-[4px] border bg-[#FAFAFA] px-4",
+                  "text-[18px] text-gray-700 outline-none",
+                  "border-gray-200 focus:border-[#64A5FF]",
+                ].join(" ")}
+              />
+
+              <div className="flex h-[64px] items-center justify-center">
+                <span className="text-[20px] text-gray-300">—</span>
+              </div>
+
+              <input
+                type="date"
+                value={reduceEnd}
+                onChange={(e) => setReduceEnd(e.target.value)}
+                className={[
+                  "h-[64px] w-[200px]",
+                  "rounded-[4px] border bg-[#FAFAFA] px-4",
+                  "text-[18px] text-gray-700 outline-none",
+                  "border-gray-200 focus:border-[#64A5FF]",
+                ].join(" ")}
+              />
+
+              <div className="col-span-2" />
+
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={!isValid || submitting}
+                className={[
+                  "ml-10 h-[48px] w-[181px] rounded-lg border text-base shadow-sm transition-colors bg-white",
+                  isValid && !submitting
+                    ? "border-[#64A5FF] text-[#64A5FF] hover:bg-[#64A5FF]/10"
+                    : "border-gray-200 text-gray-400 cursor-not-allowed",
+                ].join(" ")}
+              >
+                {submitting ? "처리 중..." : "입력완료"}
+              </button>
+
+              <div />
+            </div>
+
+            <p
+              className={[
+                "mt-2 min-h-[20px] text-[13px]",
+                showReduceOrderError ? "text-red-500" : "text-transparent",
+              ].join(" ")}
+            >
+              감면 시작일은 감면 종료일보다 이전이어야 합니다.
             </p>
           </form>
         </div>

@@ -1,14 +1,16 @@
 import { api } from "./client";
 
 export type RefundSelectionRequest = {
-  claim_from: string;
-  claim_to: string;
+  claim_from: string;        // "YYYY-MM-DD"
+  claim_to: string;          // "YYYY-MM-DD"
+  claim_date: string;        // "YYYY-MM-DD"
+  reduction_yn: "yes" | "no";
+  reduction_start: string;   // "YYYY-MM-DD" or ""
+  reduction_end: string;     // "YYYY-MM-DD" or ""
 };
 
 export type RefundSelectionResult = {
-  totalPageCount: number;
-  validYears: number[];
-  message?: string;
+  case_id: number;
 };
 
 export type RefundSelectionResponse = {
@@ -18,7 +20,13 @@ export type RefundSelectionResponse = {
   result: RefundSelectionResult;
 };
 
-export async function refundSelection(body: RefundSelectionRequest) {
-  const res = await api.post<RefundSelectionResponse>("/refund-selection", body);
+export async function refundSelection(
+  customerId: number | string,
+  body: RefundSelectionRequest
+) {
+  const res = await api.post<RefundSelectionResponse>(
+    `/refund-selection/${customerId}`,
+    body
+  );
   return res.data;
 }

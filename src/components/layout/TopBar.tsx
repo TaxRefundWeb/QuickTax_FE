@@ -1,14 +1,25 @@
 import { useNavigate } from "react-router-dom";
 import { useCustomerListModal } from "../../contexts/customerListModalContext";
+import { logout } from "../../lib/api/auth";
 
 export default function TopBar() {
   const navigate = useNavigate();
   const { openLoginModal } = useCustomerListModal();
 
-  const handleLogout = () => {
-    navigate("/", { replace: true });
+  const handleLogout = async () => {
+    try {
+      await logout(); // 서버에 로그아웃 요청 (쿠키 삭제)
+    } catch (e) {
+      console.error("logout failed:", e);
+    } finally {
+      sessionStorage.removeItem("customerId");
+      sessionStorage.removeItem("caseId");
+      // 필요하면 여기서 더 제거
+
+      navigate("/", { replace: true });
+    }
   };
-  
+
   return (
     <header className="h-14 w-full border-b bg-white">
       <div className="mx-auto flex h-full max-w-[1152px] items-center justify-end px-6">

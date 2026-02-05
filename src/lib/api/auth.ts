@@ -9,3 +9,15 @@ export async function login(cpaId: string, password: string) {
   });
   return res.data;
 }
+
+export type LogoutResponse = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result: string;
+};
+
+export async function logout() {
+  const res = await api.post<LogoutResponse>("/auth/logout");
+  return res.data;
+}

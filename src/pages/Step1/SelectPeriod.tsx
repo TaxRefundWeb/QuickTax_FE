@@ -202,20 +202,28 @@ export default function SelectPeriod() {
     try {
       setSubmitting(true);
 
-      const res = await refundSelection({
+      // 새 API 스펙(6개)으로 전송 + reduction_yn은 yes 고정
+      const res = await refundSelection(customerId, {
         claim_from: `${startYear}-01-01`,
         claim_to: `${endYear}-12-31`,
+        claim_date: claimDate,
+        reduction_yn: "yes",
+        reduction_start: reduceStart,
+        reduction_end: reduceEnd,
       });
+
+      const caseId = res.result.case_id;
+      sessionStorage.setItem("caseId", String(caseId));
 
       navigate("/step1/existing", {
         state: {
           customerId,
+          caseId,
           startYear,
           endYear,
           claimDate,
           reduceStart,
           reduceEnd,
-          refundSelectionResult: res?.result ?? null,
         },
       });
     } catch (e) {

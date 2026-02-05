@@ -73,7 +73,7 @@ export default function App() {
 
             {/* Step3: 계산 결과 비교 */}
             <Route
-              path="/step3/compare"
+              path="/step3/compare/:caseId"
               element={
                 <StepLayout activeStep={2}>
                   <CalculationCompare />

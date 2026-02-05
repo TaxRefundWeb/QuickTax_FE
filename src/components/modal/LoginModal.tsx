@@ -131,7 +131,6 @@ export default function LoginModal({
         setError("고객 목록을 불러오지 못했습니다.");
         setCustomers([]);
       } finally {
-        if (!alive) return;
         setLoading(false);
       }
     })();

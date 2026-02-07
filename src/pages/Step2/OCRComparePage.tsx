@@ -1,6 +1,9 @@
+// src/pages/Step2/OCRComparePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Document, Page, pdfjs } from "react-pdf";
+
+import OCRresult, { type OcrSection } from "../../components/card/OCRresult";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -25,16 +28,6 @@ type OcrNavState = {
   period?: PeriodState;
   years?: string[];
   formsByYear?: Record<string, YearForm>;
-};
-
-type OcrRow = {
-  label: string;
-  badge?: string;
-};
-
-type OcrSection = {
-  title: string;
-  rows: OcrRow[];
 };
 
 const OCR_SECTIONS: OcrSection[] = [
@@ -90,7 +83,7 @@ export default function OcrComparePage() {
   const startYear = navState?.period?.startYear ?? "";
   const endYear = navState?.period?.endYear ?? "";
   const yearsFromPrev = navState?.years ?? [];
-  const formsByYear = navState?.formsByYear ?? {};
+  const _formsByYear = navState?.formsByYear ?? {};
 
   useEffect(() => {
     if (!startYear || !endYear || yearsFromPrev.length === 0) {
@@ -115,58 +108,49 @@ export default function OcrComparePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [filesByYear, setFilesByYear] = useState<Record<string, File | null>>(
-    {}
-  );
-  const [pdfUrlByYear, setPdfUrlByYear] = useState<Record<string, string>>({});
+  const [file, setFile] = useState<File | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string>("");
 
-  const selectedFileName = useMemo(() => {
-    const f = filesByYear[activeYear];
-    return f?.name ?? "";
-  }, [filesByYear, activeYear]);
+  const selectedFileName = useMemo(() => file?.name ?? "", [file]);
 
-  const handlePickFile = (file: File) => {
-    if (!activeYear) return;
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
+  const handlePickFile = (picked: File) => {
     const isPdf =
-      file.name.toLowerCase().endsWith(".pdf") ||
-      file.type === "application/pdf";
+      picked.name.toLowerCase().endsWith(".pdf") ||
+      picked.type === "application/pdf";
 
     if (!isPdf) {
       alert("PDF 파일만 업로드할 수 있어요!");
       return;
     }
 
-    setFilesByYear((prev) => ({ ...prev, [activeYear]: file }));
+    setFile(picked);
 
-    setPdfUrlByYear((prev) => {
-      const prevUrl = prev[activeYear];
-      if (prevUrl) URL.revokeObjectURL(prevUrl);
-
-      const nextUrl = URL.createObjectURL(file);
-      return { ...prev, [activeYear]: nextUrl };
+    setPdfUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(picked);
     });
   };
 
-  const handleDropFile = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
+  // 나중에 여기 setTimeout을 실제 OCR API 호출로 바꾸면 끝!
+  useEffect(() => {
+    if (!file || !activeYear) return;
 
-    const file = e.dataTransfer.files?.[0];
-    if (!file) return;
+    setIsOcrLoading(true);
 
-    handlePickFile(file);
-  };
+    const timer = window.setTimeout(() => {
+      setIsOcrLoading(false);
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [file, activeYear]);
 
   useEffect(() => {
     return () => {
-      Object.values(pdfUrlByYear).forEach((url) => {
-        if (url) URL.revokeObjectURL(url);
-      });
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pdfUrl]);
 
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
@@ -177,23 +161,24 @@ export default function OcrComparePage() {
     setScale(1);
   }, [activeYear]);
 
-  const currentPdfUrl = pdfUrlByYear[activeYear] ?? "";
+  const currentPdfUrl = pdfUrl;
 
   const handleGoToStep3 = () => {
-    // 필요하면 여기서 "activeYear에 PDF가 업로드 되었는지" 체크도 가능
-    // if (!filesByYear[activeYear]) { alert("먼저 PDF를 업로드해 주세요!"); return; }
-
+    if (!file) {
+      alert("먼저 PDF를 업로드해 주세요!");
+      return;
+    }
     navigate("/step3/compare", {
       state: {
-        year: activeYear, // Step3에서 쓰고 싶으면 사용
+        year: activeYear,
       },
     });
   };
 
   useEffect(() => {
     if (!activeYear) return;
-    // console.log("선택 연도:", activeYear, formsByYear[activeYear]);
-  }, [activeYear, formsByYear]);
+    void _formsByYear;
+  }, [activeYear, _formsByYear]);
 
   return (
     <div className="w-full flex justify-center">
@@ -213,46 +198,79 @@ export default function OcrComparePage() {
                 accept=".pdf,application/pdf"
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
+                  const f = e.target.files?.[0];
+                  if (!f) return;
 
-                  handlePickFile(file);
+                  handlePickFile(f);
                   e.currentTarget.value = "";
                 }}
               />
 
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full rounded-[10px] border border-gray-200 bg-[#FAFAFA] p-3 text-left hover:bg-gray-50"
+              <div
+                className={[
+                  "w-full rounded-[10px] border p-3 text-left transition",
+                  isDragging
+                    ? "border-[#64A5FF] bg-[#F3F8FF]"
+                    : "border-gray-200 bg-[#FAFAFA] hover:bg-gray-50",
+                ].join(" ")}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(true);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!isDragging) setIsDragging(true);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsDragging(false);
+
+                  const f = e.dataTransfer.files?.[0];
+                  if (!f) return;
+
+                  handlePickFile(f);
+                }}
               >
-                {selectedFileName ? (
-                  <>
-                    <div className="text-[13px] text-gray-700">
-                      {selectedFileName}
-                    </div>
-                    <div className="mt-1 text-[12px] text-gray-400">
-                      클릭해서 파일 변경
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-[13px] text-gray-700">
-                      파일 불러오기
-                    </div>
-                    <div className="mt-1 text-[12px] text-gray-400">
-                      클릭해서 파일 선택
-                    </div>
-                  </>
-                )}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full text-left"
+                >
+                  {selectedFileName ? (
+                    <>
+                      <div className="text-[13px] text-gray-700">
+                        {selectedFileName}
+                      </div>
+                      <div className="mt-1 text-[12px] text-gray-400">
+                        클릭해서 파일 변경
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-[13px] text-gray-700">
+                        파일 불러오기
+                      </div>
+                      <div className="mt-1 text-[12px] text-gray-400">
+                        클릭해서 파일 선택 또는 <br />
+                        드래그해서 놓기
+                      </div>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* 연도 탭 */}
             <div className="rounded-[8px] border border-gray-200 bg-white p-4">
-              <p className="mb-3 text-[12px] text-gray-700">
-                년도별 인식 결과
-              </p>
+              <p className="mb-3 text-[12px] text-gray-700">년도별 인식 결과</p>
 
               <YearTabs
                 years={openYears}
@@ -304,43 +322,14 @@ export default function OcrComparePage() {
               <div className="h-[calc(760px-24px-32px)] overflow-hidden rounded-[10px] border border-gray-200 bg-white">
                 {!currentPdfUrl ? (
                   <div className="h-full p-4">
-                    <div
-                      className={[
-                        "flex h-full items-center justify-center text-[13px] text-gray-400",
-                        "border-2 border-dashed rounded-[10px]",
-                        isDragging
-                          ? "border-[#64A5FF] bg-[#F3F8FF]"
-                          : "border-gray-200 bg-white",
-                      ].join(" ")}
-                      onDragEnter={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsDragging(true);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (!isDragging) setIsDragging(true);
-                      }}
-                      onDragLeave={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsDragging(false);
-                      }}
-                      onDrop={handleDropFile}
-                    >
+                    <div className="flex h-full items-center justify-center rounded-[10px] border-2 border-dashed border-gray-200 bg-white text-[13px] text-gray-400">
                       <div className="text-center">
-                        <div className="text-[13px] text-gray-600">
-                          {activeYear
-                            ? `${activeYear}년 PDF를 불러와 주세요.`
-                            : "연도를 선택해 주세요."}
+                        <div className="text-[30px] text-gray-600">
+                          PDF를 불러와 주세요.
                         </div>
-                        {activeYear && (
-                          <div className="mt-1 text-[12px] text-gray-400">
-                            여기에 PDF를 드래그해서 놓거나, 왼쪽에서 파일을
-                            선택하세요
-                          </div>
-                        )}
+                        <div className="mt-1 text-[20px] text-gray-400">
+                          왼쪽 상단에서 파일을 선택하거나 드래그해서 놓아주세요
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -377,7 +366,7 @@ export default function OcrComparePage() {
                           {pageNumber} / {numPages || "-"}
                         </span>
                         <span className="text-gray-400">
-                          (연도: {activeYear || "-"})
+                          (선택 연도: {activeYear || "-"})
                         </span>
                       </div>
 
@@ -435,11 +424,60 @@ export default function OcrComparePage() {
               </div>
             </div>
 
-            {/* 우측 OCR 결과 (계산하기 버튼 연결) */}
-            <OcrFixedPanel
-              activeYear={activeYear}
-              onCalculate={handleGoToStep3}
-            />
+            {/* 우측 OCR 결과 */}
+            <div className="h-full bg-white flex flex-col items-center">
+              {/* 헤더 */}
+              <div className="w-[600px]">
+                <div className="pt-6 pl-[40px]">
+                  <div className="mb-2 flex items-center gap-2">
+                    <p className="text-[18px] text-gray-800">OCR 인식 결과</p>
+                    <span className="text-[12px] text-gray-400">ⓘ</span>
+                  </div>
+                  <p className="mb-4 text-[14px] text-gray-500">
+                    좌측의 원본 서류와 비교하여 수정해주세요
+                  </p>
+                </div>
+              </div>
+
+              {isOcrLoading ? (
+                <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
+                  <div className="h-full flex items-center justify-center bg-[#F3F8FF] px-6 py-5">
+                    <div className="text-center flex flex-col items-center">
+                      <div className="mb-3 h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-[#64A5FF]" />
+                      <div className="text-[14px] text-gray-600">
+                        OCR 결과를 분석 중입니다…
+                      </div>
+                      <div className="mt-1 text-[12px] text-gray-400">
+                        잠시만 기다려 주세요
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <OCRresult sections={OCR_SECTIONS} />
+              )}
+
+              {/* 하단 버튼 */}
+              <div className="w-[600px] mt-6 flex justify-end px-0 py-2">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    className="h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50"
+                  >
+                    수정하기
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGoToStep3}
+                    className="h-[40px] w-[120px] rounded-[6px] bg-[#64A5FF] text-[13px] font-medium text-white hover:bg-[#4F93FF]"
+                  >
+                    계산하기
+                  </button>
+                </div>
+              </div>
+            </div>
+            {/* /우측 */}
           </div>
         </div>
       </div>
@@ -479,99 +517,6 @@ function YearTabs({
             </button>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function OcrFixedPanel({
-  activeYear,
-  onCalculate,
-}: {
-  activeYear: string;
-  onCalculate: () => void;
-}) {
-  void activeYear;
-  const PANEL_W = 600;
-
-  return (
-    <div className="h-full bg-white flex flex-col items-center">
-      <div className={`w-[${PANEL_W}px]`}>
-        <div className="pt-6 pl-[40px]">
-          <div className="mb-2 flex items-center gap-2">
-            <p className="text-[18px] text-gray-800">
-              OCR 인식 결과
-            </p>
-            <span className="text-[12px] text-gray-400">ⓘ</span>
-          </div>
-          <p className="mb-4 text-[14px] text-gray-500">
-            좌측의 원본 서류와 비교하여 수정해주세요
-          </p>
-        </div>
-      </div>
-
-      <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
-        <div className="h-full overflow-auto">
-          <div className="bg-[#F3F8FF] px-6 py-5 min-h-full">
-            {OCR_SECTIONS.map((sec, idx) => (
-              <div key={sec.title}>
-                <h2 className="mb-4 text-[16px] text-gray-800">
-                  {sec.title}
-                </h2>
-
-                <div className="pl-5 space-y-3">
-                  {sec.rows.map((row) => (
-                    <OcrFixedRow key={`${sec.title}-${row.label}`} row={row} />
-                  ))}
-                </div>
-
-                {idx !== OCR_SECTIONS.length - 1 ? (
-                  <div className="my-5 h-px bg-[#D8E6FF]" />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="w-[600px] mt-6 flex justify-end px-0 py-2">
-        <div className="flex gap-3">
-          <button
-            type="button"
-            className="h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50"
-          >
-            수정하기
-          </button>
-
-          {/* onClick만 연결 */}
-          <button
-            type="button"
-            onClick={onCalculate}
-            className="h-[40px] w-[120px] rounded-[6px] bg-[#64A5FF] text-[13px] font-medium text-white hover:bg-[#4F93FF]"
-          >
-            계산하기
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OcrFixedRow({ row }: { row: OcrRow }) {
-  return (
-    <div className="grid grid-cols-[1fr_220px] items-center gap-3">
-      <span className="font-inter text-[16px] text-[#6D6D6D] leading-normal">
-        {row.label}
-      </span>
-
-      <div className="flex items-center justify-end gap-1">
-        {row.badge ? (
-          <span className="inline-flex h-5 shrink-0 items-center rounded-full bg-[#E7F0FF] px-2 text-[10px] font-medium text-[#2F6FED]">
-            {row.badge}
-          </span>
-        ) : null}
-
-        <div className="h-[36px] w-[180px] rounded-[6px] border border-gray-200 bg-white" />
       </div>
     </div>
   );

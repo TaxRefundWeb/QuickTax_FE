@@ -2,10 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import FileTab, { type FileTabItem } from "../../components/filetab/FileTab";
-import {
-  createRefundClaim,
-  type CreateRefundClaimPayload,
-} from "../../lib/api/refundClaims";
+import { createRefundClaim } from "../../lib/api/refundClaims";
 
 type Option = { value: string; label: string };
 
@@ -167,10 +164,8 @@ const emptyChild = (): ChildInfo => ({ name: "", rrn: "" });
 type YearForm = {
   workplaces: WorkPlace[];
 
-  // 세액 감면 및 서류 정보
-  reduceStart: string | null; // 연도("2020")
-  reduceEnd: string | null; // 연도("2025")
-  docDate: string; // YYYY-MM-DD
+  // ✅ 감면 여부만 받기 (yes/no)
+  reductionYn: string | null; // yes/no
 
   // 인적 공제
   spouse: string | null; // yes/no
@@ -184,9 +179,7 @@ type YearForm = {
 const emptyYearForm = (): YearForm => ({
   workplaces: [emptyWorkPlace()],
 
-  reduceStart: null,
-  reduceEnd: null,
-  docDate: "",
+  reductionYn: null,
 
   spouse: null,
   spouseName: "",
@@ -208,8 +201,8 @@ function isYearFormValid(f: YearForm) {
         w.sme
     );
 
-  const reduceValid = Boolean(f.reduceStart && f.reduceEnd);
-  const docValid = Boolean(f.docDate);
+  const reductionValid = f.reductionYn === "yes" || f.reductionYn === "no";
+
   const spouseChoiceValid = f.spouse === "yes" || f.spouse === "no";
   const childChoiceValid = f.child === "yes" || f.child === "no";
 
@@ -223,8 +216,7 @@ function isYearFormValid(f: YearForm) {
 
   return Boolean(
     allWorkplacesValid &&
-      reduceValid &&
-      docValid &&
+      reductionValid &&
       spouseChoiceValid &&
       childChoiceValid &&
       spouseDetailValid &&
@@ -234,59 +226,77 @@ function isYearFormValid(f: YearForm) {
 
 const normalizeBizNo = (s: string) => s.replaceAll("-", "").trim();
 const normalizeRrn = (s: string) => s.replaceAll("-", "").trim();
+const toBool = (v: string | null) => v === "yes";
 
-function toYesNo(v: string | null) {
-  // 백 로직: "yes"면 있음, 그 외는 없음 처리
-  return v === "yes" ? "yes" : "no";
-}
+/** ✅ 새 Swagger 구조 타입 */
+type RefundClaimV2Payload = {
+  cases: Array<{
+    case_year: number;
+    reduction_yn: boolean;
+    spouse_yn: boolean;
+    child_yn: boolean;
+    companies: Array<{
+      business_number: string;
+      case_work_start: string;
+      case_work_end: string;
+      small_business_yn: boolean;
+    }>;
+    spouse: {
+      spouse_name: string;
+      spouse_rrn: string;
+    };
+    children: Array<{
+      child_name: string;
+      child_rrn: string;
+    }>;
+  }>;
+};
 
-function yearToDateStart(year: string | null) {
-  return year ? `${year}-01-01` : "";
-}
-function yearToDateEnd(year: string | null) {
-  return year ? `${year}-12-31` : "";
-}
-
-/* API payload만 customerid(소문자) */
-function buildRefundClaimPayload(args: {
-  customerid: number;
+function buildRefundClaimPayloadV2(args: {
   years: number[];
   formsByYear: Record<string, YearForm>;
-}): CreateRefundClaimPayload {
-  const { customerid, years, formsByYear } = args;
+}): RefundClaimV2Payload {
+  const { years, formsByYear } = args;
 
   return {
-    customerid,
-    case_year: years,
-    customers: years.flatMap((year) => {
-      const f = formsByYear[String(year)];
-      if (!f) return [];
+    cases: years.map((year) => {
+      const f = formsByYear[String(year)] ?? emptyYearForm();
 
-      return f.workplaces.map((w) => ({
-        Business_number: normalizeBizNo(w.bizNo),
-        small_business_yn: toYesNo(w.sme),
+      return {
+        case_year: year,
 
-        case_work_start: w.workStart,
-        case_work_end: w.workEnd,
+        // ✅ 추가: 감면 여부 (boolean)
+        reduction_yn: toBool(f.reductionYn),
 
-        claim_date: f.docDate,
+        spouse_yn: toBool(f.spouse),
+        child_yn: toBool(f.child),
 
-        reduction_start: yearToDateStart(f.reduceStart),
-        reduction_end: yearToDateEnd(f.reduceEnd),
+        companies: f.workplaces.map((w) => ({
+          business_number: normalizeBizNo(w.bizNo),
+          case_work_start: w.workStart,
+          case_work_end: w.workEnd,
+          small_business_yn: toBool(w.sme),
+        })),
 
-        spouse_yn: toYesNo(f.spouse),
-        spouse_name: f.spouse === "yes" ? f.spouseName.trim() : "",
-        spouse_RRN: f.spouse === "yes" ? normalizeRrn(f.spouseRrn) : "",
+        spouse:
+          f.spouse === "yes"
+            ? {
+                spouse_name: f.spouseName.trim(),
+                spouse_rrn: normalizeRrn(f.spouseRrn),
+              }
+            : {
+                spouse_name: "",
+                spouse_rrn: "",
+              },
 
-        child_list:
+        children:
           f.child === "yes"
             ? f.children.map((c) => ({
-                child_yn: "yes", // 백 검증 로직 맞춤
                 child_name: c.name.trim(),
-                child_RRN: normalizeRrn(c.rrn),
+                child_rrn: normalizeRrn(c.rrn),
               }))
             : [],
-      }));
+      };
     }),
   };
 }
@@ -299,7 +309,7 @@ export default function ExistingCustomerPage() {
   const startYear = period?.startYear ?? "";
   const endYear = period?.endYear ?? "";
 
-  /* 라우팅 customerId */
+  // 라우팅 customerId (payload에는 안 들어가지만 흐름 유지를 위해 둠)
   const rawCustomerId = period?.customerId ?? null;
   const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
 
@@ -315,10 +325,7 @@ export default function ExistingCustomerPage() {
     }
   }, [startYear, endYear, customerId, navigate]);
 
-  const yearList = useMemo(
-    () => yearsInRange(startYear, endYear),
-    [startYear, endYear]
-  );
+  const yearList = useMemo(() => yearsInRange(startYear, endYear), [startYear, endYear]);
 
   const [openYears, setOpenYears] = useState<number[]>([]);
   const [activeKey, setActiveKey] = useState<string>("");
@@ -361,9 +368,7 @@ export default function ExistingCustomerPage() {
   };
 
   const updateWorkPlace = (idx: number, patch: Partial<WorkPlace>) => {
-    const next = currentForm.workplaces.map((w, i) =>
-      i === idx ? { ...w, ...patch } : w
-    );
+    const next = currentForm.workplaces.map((w, i) => (i === idx ? { ...w, ...patch } : w));
     updateCurrent({ workplaces: next });
   };
 
@@ -373,10 +378,10 @@ export default function ExistingCustomerPage() {
 
   const removeWorkPlace = (idx: number) => {
     if (idx === 0) return;
-    updateCurrent({
-      workplaces: currentForm.workplaces.filter((_, i) => i !== idx),
-    });
+    updateCurrent({ workplaces: currentForm.workplaces.filter((_, i) => i !== idx) });
   };
+
+  const setReductionYn = (v: string) => updateCurrent({ reductionYn: v });
 
   const setSpouse = (v: string) => {
     if (v === "no") {
@@ -395,9 +400,7 @@ export default function ExistingCustomerPage() {
   };
 
   const updateChild = (idx: number, patch: Partial<ChildInfo>) => {
-    const next = currentForm.children.map((c, i) =>
-      i === idx ? { ...c, ...patch } : c
-    );
+    const next = currentForm.children.map((c, i) => (i === idx ? { ...c, ...patch } : c));
     updateCurrent({ children: next });
   };
 
@@ -418,17 +421,17 @@ export default function ExistingCustomerPage() {
     if (!Number.isFinite(customerId)) return;
 
     try {
-      const payload = buildRefundClaimPayload({
-        customerid: customerId!, // payload만 소문자
+      const payload = buildRefundClaimPayloadV2({
         years: openYears,
         formsByYear,
       });
 
-      const res = await createRefundClaim(payload);
+      // ✅ createRefundClaim의 타입이 아직 구버전이면, api 쪽 타입도 V2로 업데이트해줘야 함.
+      const res = await createRefundClaim(payload as any);
 
       navigate("/step2/ocr-compare", {
         state: {
-          period: { startYear, endYear, customerId }, // 라우팅은 customerId
+          period: { startYear, endYear, customerId },
           years: openYears.map(String),
           formsByYear,
           refundClaimResult: res,
@@ -482,9 +485,7 @@ export default function ExistingCustomerPage() {
             <div className="mx-auto w-[850px] pl-10 pr-12 py-10 justify-center">
               {/* 근무지 정보 */}
               <section>
-                <h2 className="mb-6 text-[20px] font-semibold text-gray-800">
-                  근무지 정보
-                </h2>
+                <h2 className="mb-6 text-[20px] font-semibold text-gray-800">근무지 정보</h2>
 
                 <div className="space-y-4">
                   {currentForm.workplaces.map((w, idx) => (
@@ -515,9 +516,7 @@ export default function ExistingCustomerPage() {
                             </label>
                             <input
                               value={w.corpName}
-                              onChange={(e) =>
-                                updateWorkPlace(idx, { corpName: e.target.value })
-                              }
+                              onChange={(e) => updateWorkPlace(idx, { corpName: e.target.value })}
                               className="h-[48px] w-[177px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                             />
                           </div>
@@ -565,9 +564,7 @@ export default function ExistingCustomerPage() {
                             </label>
                             <input
                               value={w.bizNo}
-                              onChange={(e) =>
-                                updateWorkPlace(idx, { bizNo: e.target.value })
-                              }
+                              onChange={(e) => updateWorkPlace(idx, { bizNo: e.target.value })}
                               className="h-[48px] w-full rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                             />
                           </div>
@@ -586,67 +583,26 @@ export default function ExistingCustomerPage() {
                 </button>
               </section>
 
-              <div className="h-16" />
+              <div className="h-12" />
 
-              {/* 세액 감면 및 서류 정보 */}
+              {/* 감면 여부 */}
               <section>
-                <h2 className="mb-6 text-[20px] font-semibold text-gray-800">
-                  세액 감면 및 서류 정보
-                </h2>
+                <h2 className="mb-6 text-[20px] font-semibold text-gray-800">서류 정보</h2>
 
-                <div className="grid grid-cols-2 gap-x-16 gap-y-10">
-                  <div>
-                    <label className="mb-2 block text-[14px] text-gray-600">
-                      감면 기간
-                    </label>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                      <RadioDropdown
-                        label=""
-                        placeholder="선택"
-                        value={currentForm.reduceStart}
-                        onChange={(v) => updateCurrent({ reduceStart: v })}
-                        options={[
-                          { value: "2020", label: "2020" },
-                          { value: "2021", label: "2021" },
-                          { value: "2022", label: "2022" },
-                          { value: "2023", label: "2023" },
-                          { value: "2024", label: "2024" },
-                          { value: "2025", label: "2025" },
-                        ]}
-                      />
-                      <span className="text-gray-300">—</span>
-                      <RadioDropdown
-                        label=""
-                        placeholder="선택"
-                        value={currentForm.reduceEnd}
-                        onChange={(v) => updateCurrent({ reduceEnd: v })}
-                        options={[
-                          { value: "2020", label: "2020" },
-                          { value: "2021", label: "2021" },
-                          { value: "2022", label: "2022" },
-                          { value: "2023", label: "2023" },
-                          { value: "2024", label: "2024" },
-                          { value: "2025", label: "2025" },
-                        ]}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-[14px] text-gray-600">
-                      서류 제출 일자
-                    </label>
-                    <input
-                      type="date"
-                      value={currentForm.docDate}
-                      onChange={(e) => updateCurrent({ docDate: e.target.value })}
-                      className="h-[48px] w-[177px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
-                    />
-                  </div>
+                <div className="w-[100px]">
+                  <RadioDropdown
+                    label="감면 여부"
+                    value={currentForm.reductionYn}
+                    onChange={setReductionYn}
+                    options={[
+                      { value: "yes", label: "유" },
+                      { value: "no", label: "무" },
+                    ]}
+                  />
                 </div>
               </section>
 
-              <div className="h-16" />
+              <div className="h-12" />
 
               {/* 인적 공제 정보 */}
               <section>

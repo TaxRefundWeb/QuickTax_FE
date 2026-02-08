@@ -113,7 +113,12 @@ export default function OcrComparePage() {
 
   const selectedFileName = useMemo(() => file?.name ?? "", [file]);
 
+  // ✅ OCR 로딩
   const [isOcrLoading, setIsOcrLoading] = useState(false);
+
+  // ✅ PDF 로딩/에러
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   const handlePickFile = (picked: File) => {
     const isPdf =
@@ -125,6 +130,8 @@ export default function OcrComparePage() {
       return;
     }
 
+    setPdfError(null);
+    setIsPdfLoading(true); // ✅ PDF 로딩 시작
     setFile(picked);
 
     setPdfUrl((prev) => {
@@ -291,10 +298,15 @@ export default function OcrComparePage() {
                   <div className="ml-2 flex items-center gap-2">
                     <button
                       type="button"
+                      disabled={isPdfLoading || !currentPdfUrl}
                       onClick={() =>
                         setScale((s) => Math.max(0.6, +(s - 0.1).toFixed(2)))
                       }
-                      className="h-8 rounded-full border border-gray-200 bg-white px-3 text-[12px] text-gray-600 hover:bg-gray-50"
+                      className={[
+                        "h-8 rounded-full border border-gray-200 bg-white px-3 text-[12px] text-gray-600 hover:bg-gray-50",
+                        (isPdfLoading || !currentPdfUrl) &&
+                          "opacity-50 cursor-not-allowed hover:bg-white",
+                      ].join(" ")}
                       aria-label="축소"
                     >
                       −
@@ -306,10 +318,15 @@ export default function OcrComparePage() {
 
                     <button
                       type="button"
+                      disabled={isPdfLoading || !currentPdfUrl}
                       onClick={() =>
                         setScale((s) => Math.min(2.0, +(s + 0.1).toFixed(2)))
                       }
-                      className="h-8 rounded-full border border-gray-200 bg-white px-3 text-[12px] text-gray-600 hover:bg-gray-50"
+                      className={[
+                        "h-8 rounded-full border border-gray-200 bg-white px-3 text-[12px] text-gray-600 hover:bg-gray-50",
+                        (isPdfLoading || !currentPdfUrl) &&
+                          "opacity-50 cursor-not-allowed hover:bg-white",
+                      ].join(" ")}
                       aria-label="확대"
                     >
                       +
@@ -334,91 +351,124 @@ export default function OcrComparePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-full p-4">
-                    <Document
-                      file={currentPdfUrl}
-                      onLoadSuccess={(info) => {
-                        setNumPages(info.numPages);
-                        setPageNumber(1);
-                      }}
-                      onLoadError={(err) =>
-                        console.error("PDF onLoadError:", err)
-                      }
-                      onSourceError={(err) =>
-                        console.error("PDF onSourceError:", err)
-                      }
-                      loading={
-                        <div className="py-10 text-center text-[13px] text-gray-400">
-                          PDF 불러오는 중...
-                        </div>
-                      }
-                      error={
-                        <div className="py-10 text-center text-[13px] text-red-500">
-                          PDF를 불러오지 못했어요.
-                          <div className="mt-2 text-[12px] text-gray-500">
-                            콘솔(F12) 에러 메시지를 확인해 주세요.
+                  <div className="h-full p-4 relative">
+                    {/* ✅ PDF 로딩 오버레이 */}
+                    {isPdfLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70">
+                        <div className="text-center flex flex-col items-center">
+                          <div className="mb-3 h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-[#64A5FF]" />
+                          <div className="text-[14px] text-gray-600">
+                            PDF 불러오는 중…
                           </div>
-                        </div>
-                      }
-                    >
-                      <div className="mb-3 flex items-center justify-between text-[12px] text-gray-500">
-                        <span>
-                          {pageNumber} / {numPages || "-"}
-                        </span>
-                        <span className="text-gray-400">
-                          (선택 연도: {activeYear || "-"})
-                        </span>
-                      </div>
-
-                      <div className="grid h-[calc(100%-72px)] grid-cols-[92px_1fr] gap-4">
-                        <div className="h-full overflow-auto pr-1">
-                          <div className="space-y-2">
-                            {Array.from({ length: numPages || 0 }, (_, i) => {
-                              const p = i + 1;
-                              const active = p === pageNumber;
-
-                              return (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  onClick={() => setPageNumber(p)}
-                                  className={[
-                                    "w-full rounded-[6px] border bg-white p-1 text-left transition",
-                                    active
-                                      ? "border-[#64A5FF] ring-2 ring-[#64A5FF]/20"
-                                      : "border-gray-200 hover:bg-gray-50",
-                                  ].join(" ")}
-                                  aria-label={`${p}페이지로 이동`}
-                                >
-                                  <div className="overflow-hidden rounded-[4px]">
-                                    <Page
-                                      pageNumber={p}
-                                      scale={0.12}
-                                      renderTextLayer={false}
-                                      renderAnnotationLayer={false}
-                                    />
-                                  </div>
-                                  <div className="mt-1 text-center text-[11px] text-gray-500">
-                                    {p}
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        <div className="h-[558px] overflow-auto border border-gray-200 bg-white">
-                          <div className="flex justify-center p-4">
-                            <Page
-                              pageNumber={pageNumber}
-                              scale={scale}
-                              renderTextLayer={false}
-                              renderAnnotationLayer={false}
-                            />
+                          <div className="mt-1 text-[12px] text-gray-400">
+                            잠시만 기다려 주세요
                           </div>
                         </div>
                       </div>
-                    </Document>
+                    )}
+
+                    {/* 에러 우선 표시 */}
+                    {pdfError ? (
+                      <div className="py-10 text-center text-[13px] text-red-500">
+                        {pdfError}
+                        <div className="mt-2 text-[12px] text-gray-500">
+                          콘솔(F12) 에러 메시지를 확인해 주세요.
+                        </div>
+                      </div>
+                    ) : (
+                      <Document
+                        file={currentPdfUrl}
+                        onLoadSuccess={(info) => {
+                          setNumPages(info.numPages);
+                          setPageNumber(1);
+                          setIsPdfLoading(false);
+                        }}
+                        onLoadError={(err) => {
+                          console.error("PDF onLoadError:", err);
+                          setPdfError("PDF를 불러오지 못했어요.");
+                          setIsPdfLoading(false);
+                        }}
+                        onSourceError={(err) => {
+                          console.error("PDF onSourceError:", err);
+                          setPdfError("PDF 소스를 불러오지 못했어요.");
+                          setIsPdfLoading(false);
+                        }}
+                        loading={
+                          <div className="py-10 text-center text-[13px] text-gray-400">
+                            PDF 불러오는 중...
+                          </div>
+                        }
+                        error={
+                          <div className="py-10 text-center text-[13px] text-red-500">
+                            PDF를 불러오지 못했어요.
+                            <div className="mt-2 text-[12px] text-gray-500">
+                              콘솔(F12) 에러 메시지를 확인해 주세요.
+                            </div>
+                          </div>
+                        }
+                      >
+                        <div className="mb-3 flex items-center justify-between text-[12px] text-gray-500">
+                          <span>
+                            {pageNumber} / {numPages || "-"}
+                          </span>
+                          <span className="text-gray-400">
+                            (선택 연도: {activeYear || "-"})
+                          </span>
+                        </div>
+
+                        <div className="grid h-[calc(100%-72px)] grid-cols-[92px_1fr] gap-4">
+                          <div className="h-full overflow-auto pr-1">
+                            <div className="space-y-2">
+                              {Array.from({ length: numPages || 0 }, (_, i) => {
+                                const p = i + 1;
+                                const active = p === pageNumber;
+
+                                return (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    disabled={isPdfLoading}
+                                    onClick={() => setPageNumber(p)}
+                                    className={[
+                                      "w-full rounded-[6px] border bg-white p-1 text-left transition",
+                                      active
+                                        ? "border-[#64A5FF] ring-2 ring-[#64A5FF]/20"
+                                        : "border-gray-200 hover:bg-gray-50",
+                                      isPdfLoading &&
+                                        "opacity-50 cursor-not-allowed hover:bg-white",
+                                    ].join(" ")}
+                                    aria-label={`${p}페이지로 이동`}
+                                  >
+                                    <div className="overflow-hidden rounded-[4px]">
+                                      <Page
+                                        pageNumber={p}
+                                        scale={0.12}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                      />
+                                    </div>
+                                    <div className="mt-1 text-center text-[11px] text-gray-500">
+                                      {p}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="h-[558px] overflow-auto border border-gray-200 bg-white">
+                            <div className="flex justify-center p-4">
+                              <Page
+                                pageNumber={pageNumber}
+                                scale={scale}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </Document>
+                    )}
                   </div>
                 )}
               </div>

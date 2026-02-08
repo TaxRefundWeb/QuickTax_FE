@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import styles from "./Login.module.css";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
@@ -6,24 +6,36 @@ import LoginFailModal from "../../components/modal/LoginFailModal";
 
 import { login } from "../../lib/api/auth";
 import { useCustomerListModal } from "../../contexts/customerListModalContext";
+import { getCustomers } from "../../lib/api/customers";
 
 export default function Login() {
   const [id, setId] = useState("");
   const [pw, setPw] = useState("");
 
-  // 아이디/비밀번호 찾기 안내 모달
   const [isFindModalOpen, setIsFindModalOpen] = useState(false);
-
-  // 로그인 실패 모달
   const [isLoginFailOpen, setIsLoginFailOpen] = useState(false);
-
-  // 로그인 진행 상태(중복 클릭 방지)
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 전역 고객목록 모달 오픈
   const { openLoginModal } = useCustomerListModal();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        await getCustomers();
+        if (alive) openLoginModal();
+      } catch {
+        // not logged in
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [openLoginModal]);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     if (!id || !pw) {
@@ -34,8 +46,6 @@ export default function Login() {
     setIsSubmitting(true);
     try {
       await login(id, pw);
-
-      // 로그인 성공 → 고객 선택 모달(전역) 열기
       openLoginModal();
     } catch (err) {
       console.error(err);
@@ -73,11 +83,7 @@ export default function Login() {
             />
           </div>
 
-          <button
-            className={styles.button}
-            type="submit"
-            disabled={isSubmitting}
-          >
+          <button className={styles.button} type="submit" disabled={isSubmitting}>
             {isSubmitting ? "로그인 중..." : "로그인하기"}
           </button>
 
@@ -97,17 +103,8 @@ export default function Login() {
         </form>
       </div>
 
-      {/* 아이디/비밀번호 찾기 안내 모달 */}
-      <FindAccountModal
-        open={isFindModalOpen}
-        onClose={() => setIsFindModalOpen(false)}
-      />
-
-      {/* 로그인 실패 모달 */}
-      <LoginFailModal
-        open={isLoginFailOpen}
-        onClose={() => setIsLoginFailOpen(false)}
-      />
+      <FindAccountModal open={isFindModalOpen} onClose={() => setIsFindModalOpen(false)} />
+      <LoginFailModal open={isLoginFailOpen} onClose={() => setIsLoginFailOpen(false)} />
     </div>
   );
 }

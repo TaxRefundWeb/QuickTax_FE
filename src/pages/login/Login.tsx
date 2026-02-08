@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import styles from "./Login.module.css";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
@@ -18,13 +18,24 @@ export default function Login() {
 
   const { openLoginModal } = useCustomerListModal();
 
+  // 모달 중복 오픈 방지(StrictMode/useEffect 2회 실행 대비)
+  const openedOnceRef = useRef(false);
+
+  // 쿠키(accessToken)로 이미 로그인 상태면, 루트 진입 시 모달 바로 오픈
   useEffect(() => {
     let alive = true;
 
     (async () => {
+      // 이미 한 번 열었다면 더 이상 시도하지 않음
+      if (openedOnceRef.current) return;
+
       try {
-        await getCustomers();
-        if (alive) openLoginModal();
+        await getCustomers(); // 200이면 로그인 상태
+        if (!alive) return;
+
+        // 여기서 락 걸고 1회만 오픈
+        openedOnceRef.current = true;
+        openLoginModal();
       } catch {
         // not logged in
       }
@@ -45,8 +56,13 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
-      await login(id, pw);
-      openLoginModal();
+      await login(id, pw); // 성공하면 HttpOnly 쿠키에 accessToken 저장됨
+
+      // 로그인 성공 시에도 중복 오픈 방지
+      if (!openedOnceRef.current) {
+        openedOnceRef.current = true;
+        openLoginModal();
+      }
     } catch (err) {
       console.error(err);
       setIsLoginFailOpen(true);
@@ -103,8 +119,14 @@ export default function Login() {
         </form>
       </div>
 
-      <FindAccountModal open={isFindModalOpen} onClose={() => setIsFindModalOpen(false)} />
-      <LoginFailModal open={isLoginFailOpen} onClose={() => setIsLoginFailOpen(false)} />
+      <FindAccountModal
+        open={isFindModalOpen}
+        onClose={() => setIsFindModalOpen(false)}
+      />
+      <LoginFailModal
+        open={isLoginFailOpen}
+        onClose={() => setIsLoginFailOpen(false)}
+      />
     </div>
   );
 }

@@ -41,9 +41,9 @@ export default function App() {
               }
             />
 
-            {/* Step1: 경정청구 기간 선택 */}
+            {/* Step1: 경정청구 기간 선택 (customerId를 URL로) */}
             <Route
-              path="/step1/period"
+              path="/:customerId/step1/period"
               element={
                 <StepLayout activeStep={0}>
                   <SelectPeriod />
@@ -51,9 +51,9 @@ export default function App() {
               }
             />
 
-            {/* Step1: 기존 고객 입력 */}
+            {/* Step1: 기존 고객 입력 (caseId를 URL로) */}
             <Route
-              path="/step1/existing"
+              path="/:caseId/step1/existing"
               element={
                 <StepLayout activeStep={0}>
                   <ExistingCustomerPage />
@@ -61,9 +61,9 @@ export default function App() {
               }
             />
 
-            {/* Step2: OCR 인식 결과 비교 */}
+            {/* Step2: OCR 인식 결과 비교 (보통 caseId가 필요해서 같이 붙이는 걸 추천) */}
             <Route
-              path="/step2/ocr-compare"
+              path="/:caseId/step2/ocr-compare"
               element={
                 <StepLayout activeStep={1}>
                   <OCRComparePage />

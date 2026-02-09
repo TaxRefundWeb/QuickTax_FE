@@ -1,3 +1,4 @@
+// src/pages/Step1/AddCustomerPage.tsx
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCustomer } from "../../lib/api/customers";
@@ -15,7 +16,7 @@ export type CustomerForm = {
   finalFee: string; // UI는 문자열로 들고 있다가, 전송할 때 number로 변환
 };
 
-// 백엔드 신규 고객 등록 Request Body 스펙 (DB가 INT면 number로 보내는 게 안전)
+// 백엔드 신규 고객 등록 Request Body 스펙
 type CreateCustomerRequest = {
   name: string;
   rrn: string;
@@ -55,7 +56,6 @@ function formatPhone(value: string) {
 
 // UI 폼 → 백엔드 Request Body 변환
 function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
-  // finalFee는 UI에서 숫자만 입력되도록 만들었지만, 방어적으로 한 번 더 digits만
   const feeText = onlyDigits(form.finalFee);
   const fee = feeText ? Number(feeText) : 0;
 
@@ -68,7 +68,7 @@ function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
     bank_number: form.accountNumber.replaceAll("-", "").trim(),
     nationality_code: form.nationalityCode.trim(),
     nationality_name: form.nationality.trim(),
-    final_fee_percent: fee, // number로 전송
+    final_fee_percent: fee,
   };
 }
 
@@ -104,7 +104,7 @@ export default function AddCustomerPage() {
       return;
     }
 
-    // ✅ 최종 수수료: 숫자만 입력되게 강제
+    // 최종 수수료: 숫자만
     if (name === "finalFee") {
       setForm((prev) => ({ ...prev, finalFee: onlyDigits(value) }));
       return;
@@ -115,7 +115,7 @@ export default function AddCustomerPage() {
 
   const isValid = useMemo(() => {
     const baseValid = Object.entries(form).every(([key, value]) => {
-      if (key === "bankCustom") return true; // bank가 custom일 때 아래에서 따로 체크
+      if (key === "bankCustom") return true;
       return value.trim() !== "";
     });
 
@@ -131,12 +131,12 @@ export default function AddCustomerPage() {
       setSubmitting(true);
 
       const payload = toCreateCustomerRequest(form);
-
       const res = await createCustomer(payload);
+
       console.log("createCustomer res:", res);
 
-      if (!res.isSuccess) {
-        alert(res.message || "신규 고객 생성에 실패했어요.");
+      if (!res?.isSuccess) {
+        alert(res?.message || "신규 고객 생성에 실패했어요.");
         return;
       }
 
@@ -147,11 +147,11 @@ export default function AddCustomerPage() {
         return;
       }
 
+      // ✅ 보험용 저장
       sessionStorage.setItem("customerId", String(customerId));
-      navigate("/step1/period", {
-        state: { customerId },
-      });
 
+      // ✅ 핵심: period가 /:customerId/step1/period 라우트면 여기로 가야 안 튕김
+      navigate(`/${customerId}/step1/period`, { state: { customerId } });
     } catch (e) {
       console.error(e);
       alert("신규 고객 생성에 실패했어요. (콘솔 확인)");

@@ -1,18 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { refundSelection } from "../../lib/api/refund";
 
 type Year = string;
 
-const YEAR_OPTIONS: Year[] = [
-  "2025",
-  "2024",
-  "2023",
-  "2022",
-  "2021",
-  "2020",
-  "2019",
-];
+const YEAR_OPTIONS: Year[] = ["2025", "2024", "2023", "2022", "2021", "2020", "2019"];
 
 function YearRadioDropdown({
   value,
@@ -68,9 +60,7 @@ function YearRadioDropdown({
           height="18"
           viewBox="0 0 24 24"
           fill="none"
-          className={
-            open ? "rotate-180 transition-transform" : "transition-transform"
-          }
+          className={open ? "rotate-180 transition-transform" : "transition-transform"}
         >
           <path
             d="M6 9l6 6 6-6"
@@ -106,14 +96,10 @@ function YearRadioDropdown({
                       checked ? "border-[#2563EB]" : "border-gray-300",
                     ].join(" ")}
                   >
-                    {checked && (
-                      <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
-                    )}
+                    {checked && <span className="h-2 w-2 rounded-full bg-[#2563EB]" />}
                   </span>
 
-                  <span className={checked ? "text-[#2563EB]" : "text-gray-600"}>
-                    {y}
-                  </span>
+                  <span className={checked ? "text-[#2563EB]" : "text-gray-600"}>{y}</span>
                 </button>
               );
             })}
@@ -124,39 +110,20 @@ function YearRadioDropdown({
   );
 }
 
-type PeriodNavState = {
-  customerId?: number | string;
-};
-
 export default function SelectPeriod() {
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // customerId 가져오기 (state + sessionStorage)
-  const rawCustomerId =
-    (location.state as PeriodNavState | null)?.customerId ??
-    sessionStorage.getItem("customerId") ??
-    null;
-
-  console.log("[SelectPeriod] location.state =", location.state);
-  console.log(
-    "[SelectPeriod] session customerId =",
-    sessionStorage.getItem("customerId")
-  );
-  console.log("[SelectPeriod] rawCustomerId =", rawCustomerId);
+  // URL에서 customerId 받기 (/ :customerId /step1/period)
+  const { customerId: customerIdParam } = useParams<{ customerId: string }>();
 
   // 매우 안전한 파싱
   const customerId = (() => {
-    if (rawCustomerId === null || rawCustomerId === undefined) return null;
-
-    const s = String(rawCustomerId).trim();
+    if (!customerIdParam) return null;
+    const s = String(customerIdParam).trim();
     if (!s || s === "null" || s === "undefined" || s === "NaN") return null;
-
     const n = Number(s);
     return Number.isFinite(n) ? n : null;
   })();
-
-  console.log("[SelectPeriod] parsed customerId =", customerId);
 
   const [startYear, setStartYear] = useState<Year>("");
   const [endYear, setEndYear] = useState<Year>("");
@@ -173,15 +140,13 @@ export default function SelectPeriod() {
 
   // customerId 검증 + 리다이렉트
   useEffect(() => {
-    console.log("[SelectPeriod] effect customerId =", customerId);
-
     if (customerId !== null) {
+      // 선택: 혹시 다른 페이지에서 쓰고 싶으면 저장해도 됨(필수는 아님)
       sessionStorage.setItem("customerId", String(customerId));
       return;
     }
 
     sessionStorage.removeItem("customerId");
-    console.log("[SelectPeriod] redirect to / (invalid customerId)");
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 
@@ -189,7 +154,6 @@ export default function SelectPeriod() {
     if (!startYear || !endYear || !claimDate) return false;
     if (Number(startYear) > Number(endYear)) return false;
 
-    // 감면기간은 무조건 필수
     if (!reduceStart || !reduceEnd) return false;
     if (reduceStart > reduceEnd) return false;
 
@@ -202,7 +166,6 @@ export default function SelectPeriod() {
     try {
       setSubmitting(true);
 
-      // 새 API 스펙(6개)으로 전송 + reduction_yn은 yes 고정
       const res = await refundSelection(customerId, {
         claim_from: `${startYear}-01-01`,
         claim_to: `${endYear}-12-31`,
@@ -215,7 +178,9 @@ export default function SelectPeriod() {
       const caseId = res.result.case_id;
       sessionStorage.setItem("caseId", String(caseId));
 
-      navigate("/step1/existing", {
+      // caseId도 URL로 이동
+      navigate(`/${caseId}/step1/existing`, {
+        // state는 옵션(화면 값 유지용). 없어도 됨.
         state: {
           customerId,
           caseId,
@@ -234,19 +199,14 @@ export default function SelectPeriod() {
     }
   };
 
-  const showYearError =
-    !!startYear && !!endYear && Number(startYear) > Number(endYear);
-
-  const showReduceOrderError =
-    !!reduceStart && !!reduceEnd && reduceStart > reduceEnd;
+  const showYearError = !!startYear && !!endYear && Number(startYear) > Number(endYear);
+  const showReduceOrderError = !!reduceStart && !!reduceEnd && reduceStart > reduceEnd;
 
   return (
     <div className="w-full">
       <div className="mx-auto w-full max-w-[920px]">
         <div className="w-[580px]">
-          <h1 className="mb-4 text-[24px] font-bold text-gray-900">
-            경정청구 신청
-          </h1>
+          <h1 className="mb-4 text-[24px] font-bold text-gray-900">경정청구 신청</h1>
 
           <p className="mb-[90px] text-[16px] text-gray-500">
             경정청구를 신청할 기간을 선택해 주세요 <br />
@@ -256,9 +216,7 @@ export default function SelectPeriod() {
           <form onSubmit={(e) => e.preventDefault()}>
             {/* 라벨 row */}
             <div className="grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-end gap-3">
-              <label className="text-[20px] text-[#595959]">
-                경정청구 기간
-              </label>
+              <label className="text-[20px] text-[#595959]">경정청구 기간</label>
               <div />
               <div />
               <div />
@@ -268,21 +226,13 @@ export default function SelectPeriod() {
 
             {/* 입력 */}
             <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
-              <YearRadioDropdown
-                value={startYear}
-                onChange={setStartYear}
-                options={YEAR_OPTIONS}
-              />
+              <YearRadioDropdown value={startYear} onChange={setStartYear} options={YEAR_OPTIONS} />
 
               <div className="flex h-[64px] items-center justify-center">
                 <span className="text-[20px] text-gray-300">—</span>
               </div>
 
-              <YearRadioDropdown
-                value={endYear}
-                onChange={setEndYear}
-                options={YEAR_OPTIONS}
-              />
+              <YearRadioDropdown value={endYear} onChange={setEndYear} options={YEAR_OPTIONS} />
 
               <div />
 

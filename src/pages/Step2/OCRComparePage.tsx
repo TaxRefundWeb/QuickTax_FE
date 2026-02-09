@@ -1,6 +1,5 @@
-// src/pages/Step2/OCRComparePage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Document, Page, pdfjs } from "react-pdf";
 
 import OCRresult, { type OcrSection } from "../../components/card/OCRresult";
@@ -10,6 +9,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.vers
 type PeriodState = {
   startYear?: string;
   endYear?: string;
+  customerId?: number | string;
+  caseId?: number | string;
 };
 
 type YearForm = {
@@ -78,18 +79,94 @@ export default function OcrComparePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // URL에서 caseId 받기 (라우트: /:caseId/step2/ocr-compare)
+  const { caseId: caseIdParam } = useParams<{ caseId: string }>();
+  const caseId = (() => {
+    if (!caseIdParam) return null;
+    const n = Number(String(caseIdParam).trim());
+    return Number.isFinite(n) ? n : null;
+  })();
+
   const navState = (location.state as OcrNavState | null) ?? null;
 
-  const startYear = navState?.period?.startYear ?? "";
-  const endYear = navState?.period?.endYear ?? "";
-  const yearsFromPrev = navState?.years ?? [];
-  const _formsByYear = navState?.formsByYear ?? {};
+  // state가 있으면 쓰고, 없으면 sessionStorage로 복구
+  const startYear =
+    navState?.period?.startYear ??
+    sessionStorage.getItem("startYear") ??
+    "";
+
+  const endYear =
+    navState?.period?.endYear ??
+    sessionStorage.getItem("endYear") ??
+    "";
+
+  const rawCustomerId =
+    navState?.period?.customerId ??
+    sessionStorage.getItem("customerId") ??
+    null;
+
+  const customerId =
+    rawCustomerId === null || rawCustomerId === undefined
+      ? null
+      : Number(rawCustomerId);
+
+  const yearsFromPrev =
+    navState?.years ??
+    (() => {
+      const saved = sessionStorage.getItem("years");
+      if (!saved) return [];
+      try {
+        const arr = JSON.parse(saved);
+        return Array.isArray(arr) ? (arr as string[]) : [];
+      } catch {
+        return [];
+      }
+    })();
+
+  const _formsByYear =
+    navState?.formsByYear ??
+    (() => {
+      const saved = sessionStorage.getItem("formsByYear");
+      if (!saved) return {};
+      try {
+        const obj = JSON.parse(saved);
+        return obj && typeof obj === "object" ? (obj as Record<string, YearForm>) : {};
+      } catch {
+        return {};
+      }
+    })();
 
   useEffect(() => {
-    if (!startYear || !endYear || yearsFromPrev.length === 0) {
-      navigate("/step1/period", { replace: true });
+    if (startYear) sessionStorage.setItem("startYear", startYear);
+    if (endYear) sessionStorage.setItem("endYear", endYear);
+    if (Number.isFinite(customerId)) sessionStorage.setItem("customerId", String(customerId));
+    if (Number.isFinite(caseId)) sessionStorage.setItem("caseId", String(caseId));
+
+    // years/forms는 크기 커질 수 있어서: 필요하면 저장, 아니면 years만 저장해도 됨
+    if (yearsFromPrev.length > 0) sessionStorage.setItem("years", JSON.stringify(yearsFromPrev));
+    // formsByYear는 무거울 수 있음(원하면 꺼도 됨)
+    if (Object.keys(_formsByYear).length > 0) {
+      sessionStorage.setItem("formsByYear", JSON.stringify(_formsByYear));
     }
-  }, [startYear, endYear, yearsFromPrev.length, navigate]);
+  }, [startYear, endYear, customerId, caseId, yearsFromPrev, _formsByYear]);
+
+  // 필수값 검증 + 리다이렉트
+  useEffect(() => {
+    if (!Number.isFinite(caseId)) {
+      alert("케이스 ID가 없습니다. 다시 진행해주세요.");
+      navigate("/", { replace: true });
+      return;
+    }
+
+    if (!startYear || !endYear || yearsFromPrev.length === 0) {
+      // period로 되돌아갈 땐 customerId가 URL에 필요함
+      if (Number.isFinite(customerId)) {
+        navigate(`/${customerId}/step1/period`, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+    }
+  }, [caseId, startYear, endYear, yearsFromPrev.length, customerId, navigate]);
 
   const [openYears, setOpenYears] = useState<number[]>([]);
   const [activeYear, setActiveYear] = useState<string>("");
@@ -113,10 +190,10 @@ export default function OcrComparePage() {
 
   const selectedFileName = useMemo(() => file?.name ?? "", [file]);
 
-  // ✅ OCR 로딩
+  // OCR 로딩
   const [isOcrLoading, setIsOcrLoading] = useState(false);
 
-  // ✅ PDF 로딩/에러
+  // PDF 로딩/에러
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -131,7 +208,7 @@ export default function OcrComparePage() {
     }
 
     setPdfError(null);
-    setIsPdfLoading(true); // ✅ PDF 로딩 시작
+    setIsPdfLoading(true);
     setFile(picked);
 
     setPdfUrl((prev) => {
@@ -175,7 +252,14 @@ export default function OcrComparePage() {
       alert("먼저 PDF를 업로드해 주세요!");
       return;
     }
-    navigate("/step3/compare", {
+    if (!Number.isFinite(caseId)) {
+      alert("케이스 ID가 없습니다. 다시 진행해주세요.");
+      navigate("/", { replace: true });
+      return;
+    }
+
+    // ✅ Step3 라우트가 /step3/compare/:caseId 이므로 caseId를 붙여야 함
+    navigate(`/step3/compare/${caseId}`, {
       state: {
         year: activeYear,
       },

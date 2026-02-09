@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import CalculationCard from "../../components/card/CalculationCard";
 import RefundOutcomeModal, {
   type RefundOutcomeStep,
 } from "../../components/modal/RefundOutcomeModal";
 
-// 기존 카드 props 타입을 그대로 쓰고 싶어서 유지
 import type { RefundPlan } from "../../data/customersDummy";
 import { getCalculationResult, type Scenario } from "../../lib/api/result";
 
 type Props = {
-  year?: number;
+  year?: number; // ✅ 이제 사실상 안 씀(호환용으로만 둬도 됨)
+};
+
+type NavState = {
+  year?: string | number; // OCR에서 넘어오는 year
 };
 
 function cn(...classes: Array<string | false | null | undefined>) {
@@ -78,9 +81,20 @@ function scenarioToPlan(s: Scenario, idx: number): RefundPlan {
 
 export default function CalculationCompare({ year }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const params = useParams<{ caseId: string }>();
   const caseIdParam = params.caseId ?? null;
+
+  // ✅ OCR에서 넘어온 year(state) + 새로고침 대비 sessionStorage fallback
+  const navState = (location.state as NavState | null) ?? null;
+
+  const yearFromNav = (() => {
+    const v = navState?.year ?? sessionStorage.getItem("activeYear") ?? null;
+    if (v === null || v === undefined) return null;
+    const n = Number(String(v));
+    return Number.isFinite(n) ? n : null;
+  })();
 
   const [refundResults, setRefundResults] = useState<
     Array<{ case_year: number; scenarios: Scenario[] }>
@@ -125,15 +139,7 @@ export default function CalculationCompare({ year }: Props) {
     return refundResults.map((r) => r.case_year).sort((a, b) => a - b);
   }, [refundResults]);
 
-  // activeYear 초기값 (API 로딩 후 years 생기는 타이밍 보정)
-  const [activeYear, setActiveYear] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (activeYear !== null) return;
-    if (!years.length) return;
-    setActiveYear(year ?? years[0]);
-  }, [years, year, activeYear]);
-
+  // ✅ plansByYear
   const plansByYear = useMemo(() => {
     const map = new Map<number, RefundPlan[]>();
 
@@ -144,6 +150,48 @@ export default function CalculationCompare({ year }: Props) {
 
     return map;
   }, [refundResults]);
+
+  // ✅ 연도별 bestPlanId 계산 (중요!)
+  const bestPlanIdByYear = useMemo(() => {
+    const m = new Map<number, string | null>();
+
+    for (const y of years) {
+      const list = plansByYear.get(y) ?? [];
+      if (list.length === 0) {
+        m.set(y, null);
+        continue;
+      }
+      const best = list.reduce((best, cur) =>
+        cur.refundExpected > best.refundExpected ? cur : best
+      );
+      m.set(y, best.id);
+    }
+
+    return m;
+  }, [years, plansByYear]);
+
+  // activeYear 초기값
+  const [activeYear, setActiveYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (activeYear !== null) return;
+    if (!years.length) return;
+
+    // 우선순위: (1) props.year(혹시라도) -> (2) nav/state year -> (3) 첫 연도
+    const initial =
+      (typeof year === "number" ? year : null) ??
+      yearFromNav ??
+      years[0];
+
+    const safe = years.includes(initial) ? initial : years[0];
+    setActiveYear(safe);
+  }, [years, year, yearFromNav, activeYear]);
+
+  // ✅ activeYear 저장(새로고침 대비)
+  useEffect(() => {
+    if (activeYear === null) return;
+    sessionStorage.setItem("activeYear", String(activeYear));
+  }, [activeYear]);
 
   // 현재 탭(연도)의 plans
   const plans = useMemo<RefundPlan[]>(() => {
@@ -160,40 +208,32 @@ export default function CalculationCompare({ year }: Props) {
     [plans.length]
   );
 
+  // ✅ 현재 연도의 best(배지용)
   const bestPlanId = useMemo(() => {
-    if (!plans.length) return null;
-    return plans.reduce((best, cur) =>
-      cur.refundExpected > best.refundExpected ? cur : best
-    ).id;
-  }, [plans]);
+    if (activeYear === null) return null;
+    return bestPlanIdByYear.get(activeYear) ?? null;
+  }, [activeYear, bestPlanIdByYear]);
 
-  // years가 생기면(또는 bestPlanId가 바뀌면) 모든 연도 기본 선택(best) 채워넣기
+  // ✅ years 생기면: 각 연도별 best를 기본 선택으로 채움 (버그 수정)
   useEffect(() => {
-    if (!years.length || !bestPlanId) return;
+    if (!years.length) return;
 
     setPickedPlanIdByYear((prev) => {
       let changed = false;
       const next: Record<number, string | null> = { ...prev };
 
       for (const y of years) {
-        if (!next[y]) {
-          next[y] = bestPlanId;
+        if (next[y]) continue; // 이미 사용자가 고른게 있으면 유지
+        const bestId = bestPlanIdByYear.get(y) ?? null;
+        if (bestId) {
+          next[y] = bestId;
           changed = true;
         }
       }
 
       return changed ? next : prev;
     });
-  }, [years, bestPlanId]);
-
-  // 현재 activeYear도 기본 선택(best) 보정
-  useEffect(() => {
-    if (activeYear === null || !bestPlanId) return;
-    setPickedPlanIdByYear((prev) => {
-      if (prev[activeYear]) return prev;
-      return { ...prev, [activeYear]: bestPlanId };
-    });
-  }, [activeYear, bestPlanId]);
+  }, [years, bestPlanIdByYear]);
 
   const selectedPlanId = useMemo(() => {
     if (!plans.length || activeYear === null) return null;
@@ -366,6 +406,9 @@ export default function CalculationCompare({ year }: Props) {
           onConfirm={() => setOutcomeStep("completed")}
           onDownloadPdf={() => console.log("PDF 출력하기")}
           onSelectCustomer={() => {
+            // 다음 고객 진행 전 세션 정리
+            // sessionStorage.removeItem("caseId");
+            // sessionStorage.removeItem("activeYear");
             setIsOutcomeOpen(false);
             navigate("/");
           }}

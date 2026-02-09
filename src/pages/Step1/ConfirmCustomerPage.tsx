@@ -1,8 +1,8 @@
+// src/pages/Step1/ConfirmCustomerPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { patchCustomer } from "../../lib/api/customers";
 import { api } from "../../lib/api/client";
-
 
 type CustomerForm = {
   name: string;
@@ -79,11 +79,7 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
 
   // 옵션에 있으면 그대로, 없으면 custom으로 돌리고 bankCustom에 서버 값을 넣기
   const bank =
-    serverBank && isKnownBank(serverBank)
-      ? serverBank
-      : serverBank
-      ? "custom"
-      : "";
+    serverBank && isKnownBank(serverBank) ? serverBank : serverBank ? "custom" : "";
 
   const bankCustom = bank === "custom" ? serverBank : "";
 
@@ -129,8 +125,24 @@ export default function ConfirmCustomerPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  /**
+   * ✅ 핵심: location.state가 없을 수 있으니(session 새로고침/직접 진입)
+   * sessionStorage로도 복구한다.
+   */
+  const rawCustomerId =
+    (location.state as ConfirmNavState | null)?.customerId ??
+    (() => {
+      const v = sessionStorage.getItem("customerId");
+      if (!v) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    })() ??
+    null;
+
   const customerId =
-    (location.state as ConfirmNavState | null)?.customerId ?? null;
+    typeof rawCustomerId === "number" && Number.isFinite(rawCustomerId)
+      ? rawCustomerId
+      : null;
 
   const [form, setForm] = useState<CustomerForm>({
     name: "",
@@ -167,14 +179,16 @@ export default function ConfirmCustomerPage() {
         setLoading(true);
 
         const res = await api.get(`/customers/${customerId}?t=${Date.now()}`);
-        const customer: CustomerDetail =
-          (res.data as any)?.result ?? res.data;
+        const customer: CustomerDetail = (res.data as any)?.result ?? res.data;
 
         const next = toCustomerFormFromServer(customer);
 
         if (!mounted) return;
         setForm(next);
         setOriginalForm(next);
+
+        // ✅ 보험용 저장
+        sessionStorage.setItem("customerId", String(customerId));
       } catch (e) {
         console.error(e);
         alert("고객 정보를 불러오지 못했어요. (콘솔 확인)");
@@ -228,21 +242,27 @@ export default function ConfirmCustomerPage() {
   const buttonLabel = isDirty ? "수정완료" : "입력완료";
 
   /** 버튼 동작
-   * - clean: 입력완료 → SelectPeriod 이동
-   * - dirty: 수정완료 → PATCH → GET(최신값 반영) → clean으로 복귀(페이지 stays)
+   * - clean: 입력완료 → Period 이동
+   * - dirty: 수정완료 → PATCH → GET(최신값 반영) → clean으로 복귀
    */
   const handleSubmit = async () => {
     if (!isValid || submitting || loading) return;
     if (typeof customerId !== "number") return;
 
-    // 상태1: 변동 없음 → 바로 이동
+    // ✅ 상태1: 변동 없음 → 바로 이동
     if (!isDirty) {
       sessionStorage.setItem("customerId", String(customerId));
-      navigate("/step1/period", { state: { customerId } });
+
+      /**
+       * ✅ 핵심 수정:
+       * Period 라우트가 `/:customerId/step1/period` 형태라면
+       * 절대경로도 customerId 포함해서 이동해야 로그인으로 튕기지 않아!
+       */
+      navigate(`/${customerId}/step1/period`, { state: { customerId } });
       return;
     }
 
-    // 상태2: 변경됨 → PATCH 후 최신값 GET으로 다시 세팅
+    // ✅ 상태2: 변경됨 → PATCH 후 최신 값 GET으로 다시 세팅
     try {
       setSubmitting(true);
 
@@ -409,9 +429,7 @@ export default function ConfirmCustomerPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-base text-gray-600">
-                계좌번호
-              </label>
+              <label className="mb-2 block text-base text-gray-600">계좌번호</label>
               <input
                 name="accountNumber"
                 type="text"

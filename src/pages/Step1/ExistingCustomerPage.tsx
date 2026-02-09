@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import FileTab, { type FileTabItem } from "../../components/filetab/FileTab";
 import { createRefundClaim } from "../../lib/api/refundClaims";
@@ -10,6 +10,8 @@ type PeriodState = {
   startYear?: string;
   endYear?: string;
   customerId?: number | string;
+  // caseId도 넘어올 수 있지만, 이제는 URL이 기준이라 선택사항
+  caseId?: number | string;
 };
 
 type RadioDropdownProps = {
@@ -114,9 +116,7 @@ function RadioDropdown({
                   {selected && <span className="h-2 w-2 rounded-full bg-blue-500" />}
                 </span>
 
-                <span
-                  className={selected ? "font-medium text-blue-600" : "text-gray-700"}
-                >
+                <span className={selected ? "font-medium text-blue-600" : "text-gray-700"}>
                   {opt.label}
                 </span>
               </button>
@@ -163,11 +163,8 @@ const emptyChild = (): ChildInfo => ({ name: "", rrn: "" });
 /** 연도별 폼 */
 type YearForm = {
   workplaces: WorkPlace[];
-
-  // ✅ 감면 여부만 받기 (yes/no)
   reductionYn: string | null; // yes/no
 
-  // 인적 공제
   spouse: string | null; // yes/no
   spouseName: string;
   spouseRrn: string;
@@ -178,7 +175,6 @@ type YearForm = {
 
 const emptyYearForm = (): YearForm => ({
   workplaces: [emptyWorkPlace()],
-
   reductionYn: null,
 
   spouse: null,
@@ -212,7 +208,8 @@ function isYearFormValid(f: YearForm) {
 
   const childrenDetailValid =
     f.child !== "yes" ||
-    (f.children.length > 0 && f.children.every((c) => c.name.trim() && c.rrn.trim()));
+    (f.children.length > 0 &&
+      f.children.every((c) => c.name.trim() && c.rrn.trim()));
 
   return Boolean(
     allWorkplacesValid &&
@@ -228,7 +225,6 @@ const normalizeBizNo = (s: string) => s.replaceAll("-", "").trim();
 const normalizeRrn = (s: string) => s.replaceAll("-", "").trim();
 const toBool = (v: string | null) => v === "yes";
 
-/** ✅ 새 Swagger 구조 타입 */
 type RefundClaimV2Payload = {
   cases: Array<{
     case_year: number;
@@ -264,10 +260,7 @@ function buildRefundClaimPayloadV2(args: {
 
       return {
         case_year: year,
-
-        // ✅ 추가: 감면 여부 (boolean)
         reduction_yn: toBool(f.reductionYn),
-
         spouse_yn: toBool(f.spouse),
         child_yn: toBool(f.child),
 
@@ -284,10 +277,7 @@ function buildRefundClaimPayloadV2(args: {
                 spouse_name: f.spouseName.trim(),
                 spouse_rrn: normalizeRrn(f.spouseRrn),
               }
-            : {
-                spouse_name: "",
-                spouse_rrn: "",
-              },
+            : { spouse_name: "", spouse_rrn: "" },
 
         children:
           f.child === "yes"
@@ -305,25 +295,67 @@ export default function ExistingCustomerPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const period = (location.state as PeriodState | null) ?? null;
-  const startYear = period?.startYear ?? "";
-  const endYear = period?.endYear ?? "";
+  const { caseId: caseIdParam } = useParams<{ caseId: string }>();
 
-  // 라우팅 customerId (payload에는 안 들어가지만 흐름 유지를 위해 둠)
-  const rawCustomerId = period?.customerId ?? null;
-  const customerId = rawCustomerId === null ? null : Number(rawCustomerId);
+  const caseId = (() => {
+    if (!caseIdParam) return null;
+    const s = String(caseIdParam).trim();
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  })();
+
+  const period = (location.state as PeriodState | null) ?? null;
+
+  const startYear =
+    period?.startYear ??
+    sessionStorage.getItem("startYear") ??
+    "";
+
+  const endYear =
+    period?.endYear ??
+    sessionStorage.getItem("endYear") ??
+    "";
+
+  const rawCustomerId =
+    period?.customerId ??
+    sessionStorage.getItem("customerId") ??
+    null;
+
+  const customerId =
+    rawCustomerId === null || rawCustomerId === undefined
+      ? null
+      : Number(rawCustomerId);
 
   useEffect(() => {
-    if (!startYear || !endYear) {
-      navigate("/step1/period", { replace: true });
+    if (startYear) sessionStorage.setItem("startYear", startYear);
+    if (endYear) sessionStorage.setItem("endYear", endYear);
+    if (Number.isFinite(customerId)) sessionStorage.setItem("customerId", String(customerId));
+    if (Number.isFinite(caseId)) sessionStorage.setItem("caseId", String(caseId));
+  }, [startYear, endYear, customerId, caseId]);
+
+  useEffect(() => {
+    if (!Number.isFinite(caseId)) {
+      alert("케이스 ID가 없습니다. 다시 진행해주세요.");
+      navigate("/", { replace: true });
       return;
     }
+
+    if (!startYear || !endYear) {
+      // period로 보낼 땐 customerId가 URL에 필요함
+      if (Number.isFinite(customerId)) {
+        navigate(`/${customerId}/step1/period`, { replace: true });
+      } else {
+        navigate("/", { replace: true });
+      }
+      return;
+    }
+
     if (!Number.isFinite(customerId)) {
       alert("고객 ID가 없습니다. 고객 선택부터 다시 진행해주세요.");
       navigate("/", { replace: true });
       return;
     }
-  }, [startYear, endYear, customerId, navigate]);
+  }, [startYear, endYear, customerId, caseId, navigate]);
 
   const yearList = useMemo(() => yearsInRange(startYear, endYear), [startYear, endYear]);
 
@@ -419,6 +451,7 @@ export default function ExistingCustomerPage() {
   const handleFinalSubmit = async () => {
     if (!allValid) return;
     if (!Number.isFinite(customerId)) return;
+    if (!Number.isFinite(caseId)) return;
 
     try {
       const payload = buildRefundClaimPayloadV2({
@@ -426,12 +459,11 @@ export default function ExistingCustomerPage() {
         formsByYear,
       });
 
-      // ✅ createRefundClaim의 타입이 아직 구버전이면, api 쪽 타입도 V2로 업데이트해줘야 함.
       const res = await createRefundClaim(payload as any);
 
-      navigate("/step2/ocr-compare", {
+      navigate(`/${caseId}/step2/ocr-compare`, {
         state: {
-          period: { startYear, endYear, customerId },
+          period: { startYear, endYear, customerId, caseId },
           years: openYears.map(String),
           formsByYear,
           refundClaimResult: res,
@@ -478,7 +510,6 @@ export default function ExistingCustomerPage() {
                 }
           }
         />
-
         {/* 탭 아래 큰 박스 */}
         <div className="w-full border border-gray-200 bg-white rounded-tr-[12px] rounded-br-[12px] rounded-bl-[12px] rounded-tl-none">
           <div className="max-h-[760px] overflow-auto">
@@ -702,7 +733,6 @@ export default function ExistingCustomerPage() {
                   )}
                 </div>
               </section>
-
               <div className="h-6" />
             </div>
           </div>

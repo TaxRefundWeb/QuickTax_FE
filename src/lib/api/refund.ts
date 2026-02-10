@@ -1,12 +1,11 @@
 import { api } from "./client";
 
 export type RefundSelectionRequest = {
-  claim_from: string;        // "YYYY-MM-DD"
-  claim_to: string;          // "YYYY-MM-DD"
-  claim_date: string;        // "YYYY-MM-DD"
-  reduction_yn: "yes" | "no";
+  claim_from: number;        // 연도 (예: 2023)
+  claim_to: number;          // 연도 (예: 2025)
   reduction_start: string;   // "YYYY-MM-DD" or ""
   reduction_end: string;     // "YYYY-MM-DD" or ""
+  claim_date: string;        // "YYYY-MM-DD"
 };
 
 export type RefundSelectionResult = {

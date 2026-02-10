@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import FileTab, { type FileTabItem } from "../../components/filetab/FileTab";
-import { createRefundClaim } from "../../lib/api/refundClaims";
+import {
+  createRefundClaim,
+  type CreateRefundClaimV2Payload,
+} from "../../lib/api/refundClaims";
 
 type Option = { value: string; label: string };
 
@@ -116,7 +119,9 @@ function RadioDropdown({
                   {selected && <span className="h-2 w-2 rounded-full bg-blue-500" />}
                 </span>
 
-                <span className={selected ? "font-medium text-blue-600" : "text-gray-700"}>
+                <span
+                  className={selected ? "font-medium text-blue-600" : "text-gray-700"}
+                >
                   {opt.label}
                 </span>
               </button>
@@ -189,12 +194,7 @@ function isYearFormValid(f: YearForm) {
   const allWorkplacesValid =
     f.workplaces.length > 0 &&
     f.workplaces.every(
-      (w) =>
-        w.corpName.trim() &&
-        w.bizNo.trim() &&
-        w.workStart &&
-        w.workEnd &&
-        w.sme
+      (w) => w.corpName.trim() && w.bizNo.trim() && w.workStart && w.workEnd && w.sme
     );
 
   const reductionValid = f.reductionYn === "yes" || f.reductionYn === "no";
@@ -208,8 +208,7 @@ function isYearFormValid(f: YearForm) {
 
   const childrenDetailValid =
     f.child !== "yes" ||
-    (f.children.length > 0 &&
-      f.children.every((c) => c.name.trim() && c.rrn.trim()));
+    (f.children.length > 0 && f.children.every((c) => c.name.trim() && c.rrn.trim()));
 
   return Boolean(
     allWorkplacesValid &&
@@ -225,28 +224,7 @@ const normalizeBizNo = (s: string) => s.replaceAll("-", "").trim();
 const normalizeRrn = (s: string) => s.replaceAll("-", "").trim();
 const toBool = (v: string | null) => v === "yes";
 
-type RefundClaimV2Payload = {
-  cases: Array<{
-    case_year: number;
-    reduction_yn: boolean;
-    spouse_yn: boolean;
-    child_yn: boolean;
-    companies: Array<{
-      business_number: string;
-      case_work_start: string;
-      case_work_end: string;
-      small_business_yn: boolean;
-    }>;
-    spouse: {
-      spouse_name: string;
-      spouse_rrn: string;
-    };
-    children: Array<{
-      child_name: string;
-      child_rrn: string;
-    }>;
-  }>;
-};
+type RefundClaimV2Payload = CreateRefundClaimV2Payload;
 
 function buildRefundClaimPayloadV2(args: {
   years: number[];
@@ -258,11 +236,14 @@ function buildRefundClaimPayloadV2(args: {
     cases: years.map((year) => {
       const f = formsByYear[String(year)] ?? emptyYearForm();
 
+      const spouseYn = toBool(f.spouse);
+      const childYn = toBool(f.child);
+
       return {
         case_year: year,
+        spouse_yn: spouseYn,
+        child_yn: childYn,
         reduction_yn: toBool(f.reductionYn),
-        spouse_yn: toBool(f.spouse),
-        child_yn: toBool(f.child),
 
         companies: f.workplaces.map((w) => ({
           business_number: normalizeBizNo(w.bizNo),
@@ -271,21 +252,21 @@ function buildRefundClaimPayloadV2(args: {
           small_business_yn: toBool(w.sme),
         })),
 
-        spouse:
-          f.spouse === "yes"
-            ? {
-                spouse_name: f.spouseName.trim(),
-                spouse_rrn: normalizeRrn(f.spouseRrn),
-              }
-            : { spouse_name: "", spouse_rrn: "" },
+        // 핵심: spouse_yn=false면 spouse는 null
+        spouse: spouseYn
+          ? {
+              spouse_name: f.spouseName.trim(),
+              spouse_rrn: normalizeRrn(f.spouseRrn),
+            }
+          : null,
 
-        children:
-          f.child === "yes"
-            ? f.children.map((c) => ({
-                child_name: c.name.trim(),
-                child_rrn: normalizeRrn(c.rrn),
-              }))
-            : [],
+        // (일단 children은 그대로 []로. 백이 null 요구하면 그때 바꾸면 됨)
+        children: childYn
+          ? f.children.map((c) => ({
+              child_name: c.name.trim(),
+              child_rrn: normalizeRrn(c.rrn),
+            }))
+          : [],
       };
     }),
   };
@@ -306,30 +287,20 @@ export default function ExistingCustomerPage() {
 
   const period = (location.state as PeriodState | null) ?? null;
 
-  const startYear =
-    period?.startYear ??
-    sessionStorage.getItem("startYear") ??
-    "";
-
-  const endYear =
-    period?.endYear ??
-    sessionStorage.getItem("endYear") ??
-    "";
+  const startYear = period?.startYear ?? sessionStorage.getItem("startYear") ?? "";
+  const endYear = period?.endYear ?? sessionStorage.getItem("endYear") ?? "";
 
   const rawCustomerId =
-    period?.customerId ??
-    sessionStorage.getItem("customerId") ??
-    null;
+    period?.customerId ?? sessionStorage.getItem("customerId") ?? null;
 
   const customerId =
-    rawCustomerId === null || rawCustomerId === undefined
-      ? null
-      : Number(rawCustomerId);
+    rawCustomerId === null || rawCustomerId === undefined ? null : Number(rawCustomerId);
 
   useEffect(() => {
     if (startYear) sessionStorage.setItem("startYear", startYear);
     if (endYear) sessionStorage.setItem("endYear", endYear);
-    if (Number.isFinite(customerId)) sessionStorage.setItem("customerId", String(customerId));
+    if (Number.isFinite(customerId))
+      sessionStorage.setItem("customerId", String(customerId));
     if (Number.isFinite(caseId)) sessionStorage.setItem("caseId", String(caseId));
   }, [startYear, endYear, customerId, caseId]);
 
@@ -341,7 +312,6 @@ export default function ExistingCustomerPage() {
     }
 
     if (!startYear || !endYear) {
-      // period로 보낼 땐 customerId가 URL에 필요함
       if (Number.isFinite(customerId)) {
         navigate(`/${customerId}/step1/period`, { replace: true });
       } else {
@@ -459,7 +429,8 @@ export default function ExistingCustomerPage() {
         formsByYear,
       });
 
-      const res = await createRefundClaim(payload as any);
+      // ✅ swagger: POST /api/refund-claims/{caseId}
+      const res = await createRefundClaim(caseId, payload);
 
       navigate(`/${caseId}/step2/ocr-compare`, {
         state: {
@@ -510,6 +481,7 @@ export default function ExistingCustomerPage() {
                 }
           }
         />
+
         {/* 탭 아래 큰 박스 */}
         <div className="w-full border border-gray-200 bg-white rounded-tr-[12px] rounded-br-[12px] rounded-bl-[12px] rounded-tl-none">
           <div className="max-h-[760px] overflow-auto">
@@ -560,18 +532,14 @@ export default function ExistingCustomerPage() {
                               <input
                                 type="date"
                                 value={w.workStart}
-                                onChange={(e) =>
-                                  updateWorkPlace(idx, { workStart: e.target.value })
-                                }
+                                onChange={(e) => updateWorkPlace(idx, { workStart: e.target.value })}
                                 className="h-[48px] w-[132px] rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
                               <span className="text-gray-300">—</span>
                               <input
                                 type="date"
                                 value={w.workEnd}
-                                onChange={(e) =>
-                                  updateWorkPlace(idx, { workEnd: e.target.value })
-                                }
+                                onChange={(e) => updateWorkPlace(idx, { workEnd: e.target.value })}
                                 className="h-[48px] w-full rounded-[4px] border border-gray-200 bg-[#FAFAFA] px-3 text-[14px] outline-none focus:border-gray-300"
                               />
                             </div>

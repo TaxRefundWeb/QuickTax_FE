@@ -141,7 +141,6 @@ export default function SelectPeriod() {
   // customerId 검증 + 리다이렉트
   useEffect(() => {
     if (customerId !== null) {
-      // 선택: 혹시 다른 페이지에서 쓰고 싶으면 저장해도 됨(필수는 아님)
       sessionStorage.setItem("customerId", String(customerId));
       return;
     }
@@ -152,7 +151,11 @@ export default function SelectPeriod() {
 
   const isValid = useMemo(() => {
     if (!startYear || !endYear || !claimDate) return false;
-    if (Number(startYear) > Number(endYear)) return false;
+
+    const s = Number(startYear);
+    const e = Number(endYear);
+    if (!Number.isFinite(s) || !Number.isFinite(e)) return false;
+    if (s > e) return false;
 
     if (!reduceStart || !reduceEnd) return false;
     if (reduceStart > reduceEnd) return false;
@@ -166,21 +169,23 @@ export default function SelectPeriod() {
     try {
       setSubmitting(true);
 
-      const res = await refundSelection(customerId, {
-        claim_from: `${startYear}-01-01`,
-        claim_to: `${endYear}-12-31`,
-        claim_date: claimDate,
-        reduction_yn: "yes",
+      // swagger 변경 반영:
+      // claim_from, claim_to: number (연도)
+      // reduction_yn: 제거됨
+      const payload = {
+        claim_from: Number(startYear),
+        claim_to: Number(endYear),
         reduction_start: reduceStart,
         reduction_end: reduceEnd,
-      });
+        claim_date: claimDate,
+      };
+
+      const res = await refundSelection(customerId, payload);
 
       const caseId = res.result.case_id;
       sessionStorage.setItem("caseId", String(caseId));
 
-      // caseId도 URL로 이동
       navigate(`/${caseId}/step1/existing`, {
-        // state는 옵션(화면 값 유지용). 없어도 됨.
         state: {
           customerId,
           caseId,
@@ -199,8 +204,10 @@ export default function SelectPeriod() {
     }
   };
 
-  const showYearError = !!startYear && !!endYear && Number(startYear) > Number(endYear);
-  const showReduceOrderError = !!reduceStart && !!reduceEnd && reduceStart > reduceEnd;
+  const showYearError =
+    !!startYear && !!endYear && Number(startYear) > Number(endYear);
+  const showReduceOrderError =
+    !!reduceStart && !!reduceEnd && reduceStart > reduceEnd;
 
   return (
     <div className="w-full">
@@ -226,7 +233,11 @@ export default function SelectPeriod() {
 
             {/* 입력 */}
             <div className="mt-2 grid grid-cols-[200px_28px_200px_1fr_181px_181px] items-center gap-3">
-              <YearRadioDropdown value={startYear} onChange={setStartYear} options={YEAR_OPTIONS} />
+              <YearRadioDropdown
+                value={startYear}
+                onChange={setStartYear}
+                options={YEAR_OPTIONS}
+              />
 
               <div className="flex h-[64px] items-center justify-center">
                 <span className="text-[20px] text-gray-300">—</span>

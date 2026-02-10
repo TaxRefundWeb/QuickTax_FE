@@ -3,11 +3,21 @@ import type { Customer } from "../../lib/api/customers";
 import { getCustomerPast } from "../../lib/api/customers";
 
 type CaseItem = {
+  case_id?: number;
+  case_year?: number;
+  claim_date?: string;
+  scenario_code?: string;
+  determined_tax_amount?: number;
+  refund_amount?: number;
+  url?: string;
+
+  // 혹시 백엔드가 다른 키로 줄 수도 있어서 여유분
   year?: number;
   taxYear?: number;
   filedAt?: string;
   taxMethod?: string;
   refundAmount?: number;
+
   [key: string]: any;
 };
 
@@ -23,6 +33,7 @@ type HistoryModalProps = {
 
 function pickYear(item: CaseItem): number | null {
   const y =
+    (typeof item.case_year === "number" && item.case_year) ||
     (typeof item.year === "number" && item.year) ||
     (typeof item.taxYear === "number" && item.taxYear) ||
     null;
@@ -30,11 +41,31 @@ function pickYear(item: CaseItem): number | null {
   return y;
 }
 
+/** swagger 구조(result.pastdata_1)까지 커버 */
 function normalizeList(res: any): CaseItem[] {
-  if (Array.isArray(res)) return res;
+  const root = res?.result ?? res?.data?.result ?? res;
+
+  if (Array.isArray(root)) return root;
+  if (Array.isArray(root?.pastdata_1)) return root.pastdata_1;
+
+  // 혹시 future: pastdata_2 같은 키가 생길 수도 있으니 안전망
+  const anyPastKey = root && typeof root === "object"
+    ? Object.keys(root).find((k) => k.startsWith("pastdata_"))
+    : null;
+  if (anyPastKey && Array.isArray(root[anyPastKey])) return root[anyPastKey];
+
   if (Array.isArray(res?.data)) return res.data;
   if (Array.isArray(res?.data?.data)) return res.data.data;
+
   return [];
+}
+
+/** number/string 둘 다 들어올 때 대비 */
+function toNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)))
+    return Number(v);
+  return null;
 }
 
 export default function HistoryModal({
@@ -49,20 +80,16 @@ export default function HistoryModal({
 
   const customerId = customer?.customerId ?? null;
 
-  /* ✅ ESC 눌러서 닫기 */
+  /* ESC 눌러서 닫기 */
   useEffect(() => {
     if (!isOpen) return;
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
+      if (e.key === "Escape") onClose();
     };
 
     window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
   /* 모달 닫히면 상태 초기화 */
@@ -84,7 +111,9 @@ export default function HistoryModal({
       try {
         setLoading(true);
         const res = await getCustomerPast(customerId);
+
         const list = normalizeList(res);
+
         if (!alive) return;
         setCases(list);
       } catch (e) {
@@ -121,12 +150,24 @@ export default function HistoryModal({
     return cases.find((c) => pickYear(c) === selectedYear) ?? null;
   }, [cases, selectedYear]);
 
+  /** swagger 키로 화면에 찍히게 매핑 */
+  const recordTaxMethod =
+    record?.scenario_code ?? record?.taxMethod ?? "-";
+
+  const recordRefundAmount =
+    toNumber(record?.refund_amount ?? record?.refundAmount) ?? 0;
+
+  const recordFiledAt =
+    record?.claim_date ?? record?.filedAt ?? "-";
+
   const handleZipClick = () => {
-    console.log("zip 다운로드(추후 연결):", customerId, selectedYear);
+    // zip API 생기면 여기서 case_id/customerId/selectedYear 조합으로 호출
+    console.log("zip 다운로드(추후 연결):", customerId, selectedYear, record?.case_id);
   };
 
   const handlePdfClick = () => {
-    console.log("pdf 다운로드(추후 연결):", customerId, selectedYear);
+    // swagger엔 url이 s3://... 로 오는데, 프론트에서 바로 열 수 있는 http(s) presigned-url로 바뀌면 연결하면 됨
+    console.log("pdf 다운로드(추후 연결):", record?.url);
   };
 
   const handleStartNew = () => {
@@ -162,7 +203,6 @@ export default function HistoryModal({
         >
           ✕
         </button>
-
 
         {/* 상단 타이틀 */}
         <div className="pt-[56px] text-center">
@@ -250,19 +290,19 @@ export default function HistoryModal({
 
                     <div className="text-[16px] text-gray-500">세금 계산 방식</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {record.taxMethod ?? "-"}
+                      {recordTaxMethod}
                     </div>
 
                     <div className="text-[16px] text-gray-500">환급금 금액</div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {(record.refundAmount ?? 0).toLocaleString()}원
+                      {recordRefundAmount.toLocaleString()}원
                     </div>
 
                     <div className="text-[16px] text-gray-500">
                       경정청구 처리 일자
                     </div>
                     <div className="text-[16px] font-semibold text-gray-900">
-                      {record.filedAt ?? "-"}
+                      {recordFiledAt}
                     </div>
                   </div>
                 )}

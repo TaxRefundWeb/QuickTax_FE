@@ -161,6 +161,12 @@ export default function LoginModal({
     });
   }, [customers, query]);
 
+  const sortedCustomers = useMemo(() => {
+    return [...filteredCustomers].sort(
+      (a, b) => a.customerId - b.customerId
+    );
+  }, [filteredCustomers]);
+
   const selectedCustomer = useMemo(() => {
     if (typeof selectedId !== "number") return null;
     return filteredCustomers.find((c) => c.customerId === selectedId) ?? null;
@@ -264,7 +270,7 @@ export default function LoginModal({
             ) : (
               !loading &&
               !error &&
-              filteredCustomers.map((c) => {
+              sortedCustomers.map((c) => {
                 const isSelected = c.customerId === selectedId;
 
                 // 표시용 포맷 적용

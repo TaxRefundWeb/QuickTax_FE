@@ -2,8 +2,8 @@ import { api } from "./client";
 
 export type RefundClaimV2Company = {
   business_number: string;
-  case_work_start: string;   // "YYYY-MM-DD"
-  case_work_end: string;     // "YYYY-MM-DD"
+  case_work_start: string;
+  case_work_end: string;
   small_business_yn: boolean;
 };
 
@@ -23,16 +23,23 @@ export type RefundClaimV2Case = {
   child_yn: boolean;
   reduction_yn: boolean;
   companies: RefundClaimV2Company[];
-  spouse: RefundClaimV2Spouse | null; 
-  children: RefundClaimV2Child[];
+
+  spouse?: RefundClaimV2Spouse;
+  children?: RefundClaimV2Child[];
 };
 
 export type CreateRefundClaimV2Payload = {
   cases: RefundClaimV2Case[];
 };
 
-// swagger 응답 타입이 정해져 있으면 여기만 바꾸면 됨
-export type CreateRefundClaimV2Response = unknown;
+export type CreateRefundClaimV2Response = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result?: {
+    saved_case_years: number[];
+  };
+};
 
 export async function createRefundClaim(
   caseId: number,

@@ -1,5 +1,6 @@
 import { api } from "./client";
 
+/** GET /api/result/{caseId} 응답에 들어오는 시나리오 */
 export type Scenario = {
   scenario_code: string;
   tax_difference_amount: number;
@@ -27,5 +28,33 @@ export type GetResultResponse = {
 
 export async function getCalculationResult(caseId: number) {
   const res = await api.get<GetResultResponse>(`/result/${caseId}`);
+  return res.data;
+}
+
+/** POST /api/result/{caseId} Request Body */
+export type SubmitScenarioItem = {
+  case_year: number;
+  scenario_code: string;
+};
+
+export type SubmitResultRequest = {
+  scenarios: SubmitScenarioItem[];
+};
+
+/** POST /api/result/{caseId} Response */
+export type SubmitResultResponse = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result: {
+    case_id: number;
+  };
+};
+
+export async function postCalculationResult(
+  caseId: number,
+  payload: SubmitResultRequest
+) {
+  const res = await api.post<SubmitResultResponse>(`/result/${caseId}`, payload);
   return res.data;
 }

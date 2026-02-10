@@ -7,10 +7,16 @@ import RefundOutcomeModal, {
 } from "../../components/modal/RefundOutcomeModal";
 
 import type { RefundPlan } from "../../data/customersDummy";
-import { getCalculationResult, type Scenario } from "../../lib/api/result";
+import {
+  getCalculationResult,
+  postCalculationResult,
+  type RefundResultByYear,
+  type Scenario,
+  type SubmitResultRequest,
+} from "../../lib/api/result";
 
 type Props = {
-  year?: number; // ✅ 이제 사실상 안 씀(호환용으로만 둬도 됨)
+  year?: number; // ✅ 이제 사실상 안 씀(호환용)
 };
 
 type NavState = {
@@ -82,35 +88,36 @@ function scenarioToPlan(s: Scenario, idx: number): RefundPlan {
 export default function CalculationCompare({ year }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
-
-  const params = useParams<{ caseId: string }>();
-  const caseIdParam = params.caseId ?? null;
+  const { caseId: caseIdParam } = useParams<{ caseId: string }>();
 
   // ✅ OCR에서 넘어온 year(state) + 새로고침 대비 sessionStorage fallback
   const navState = (location.state as NavState | null) ?? null;
 
-  const yearFromNav = (() => {
+  const yearFromNav = useMemo(() => {
     const v = navState?.year ?? sessionStorage.getItem("activeYear") ?? null;
     if (v === null || v === undefined) return null;
     const n = Number(String(v));
     return Number.isFinite(n) ? n : null;
-  })();
+  }, [navState]);
 
-  const [refundResults, setRefundResults] = useState<
-    Array<{ case_year: number; scenarios: Scenario[] }>
-  >([]);
+  const [refundResults, setRefundResults] = useState<RefundResultByYear[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // ✅ POST 진행 중 상태
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!caseIdParam) {
       setErrorMsg("caseId가 없습니다. URL을 확인해 주세요. (/compare/:caseId)");
+      setRefundResults([]);
       return;
     }
 
     const numericCaseId = Number(caseIdParam);
-    if (Number.isNaN(numericCaseId)) {
+    if (!Number.isFinite(numericCaseId)) {
       setErrorMsg("caseId가 숫자가 아닙니다. 라우팅/파라미터를 확인해 주세요.");
+      setRefundResults([]);
       return;
     }
 
@@ -120,7 +127,22 @@ export default function CalculationCompare({ year }: Props) {
         setErrorMsg(null);
 
         const data = await getCalculationResult(numericCaseId);
+
+        // ✅ isSuccess 체크 (중요)
+        if (!data?.isSuccess) {
+          setErrorMsg(data?.message ?? "계산 결과 조회에 실패했습니다.");
+          setRefundResults([]);
+          return;
+        }
+
         const list = data.result?.refund_results ?? [];
+
+        // ✅ 결과가 비어있을 때 UX
+        if (!Array.isArray(list) || list.length === 0) {
+          setErrorMsg("표시할 계산 결과가 없습니다.");
+          setRefundResults([]);
+          return;
+        }
 
         setRefundResults(list);
       } catch (e) {
@@ -136,7 +158,10 @@ export default function CalculationCompare({ year }: Props) {
   }, [caseIdParam]);
 
   const years = useMemo(() => {
-    return refundResults.map((r) => r.case_year).sort((a, b) => a - b);
+    return [...refundResults]
+      .map((r) => r.case_year)
+      .filter((y) => Number.isFinite(y))
+      .sort((a, b) => a - b);
   }, [refundResults]);
 
   // ✅ plansByYear
@@ -151,7 +176,7 @@ export default function CalculationCompare({ year }: Props) {
     return map;
   }, [refundResults]);
 
-  // ✅ 연도별 bestPlanId 계산 (중요!)
+  // ✅ 연도별 bestPlanId 계산
   const bestPlanIdByYear = useMemo(() => {
     const m = new Map<number, string | null>();
 
@@ -177,11 +202,9 @@ export default function CalculationCompare({ year }: Props) {
     if (activeYear !== null) return;
     if (!years.length) return;
 
-    // 우선순위: (1) props.year(혹시라도) -> (2) nav/state year -> (3) 첫 연도
+    // 우선순위: (1) props.year -> (2) nav/state year -> (3) 첫 연도
     const initial =
-      (typeof year === "number" ? year : null) ??
-      yearFromNav ??
-      years[0];
+      (typeof year === "number" ? year : null) ?? yearFromNav ?? years[0];
 
     const safe = years.includes(initial) ? initial : years[0];
     setActiveYear(safe);
@@ -214,7 +237,7 @@ export default function CalculationCompare({ year }: Props) {
     return bestPlanIdByYear.get(activeYear) ?? null;
   }, [activeYear, bestPlanIdByYear]);
 
-  // ✅ years 생기면: 각 연도별 best를 기본 선택으로 채움 (버그 수정)
+  // ✅ years 생기면: 각 연도별 best를 기본 선택으로 채움
   useEffect(() => {
     if (!years.length) return;
 
@@ -266,13 +289,60 @@ export default function CalculationCompare({ year }: Props) {
     setPickedPlanIdByYear((prev) => ({ ...prev, [activeYear]: planId }));
   };
 
+  // ✅ POST body 만들기
+  const submitPayload = useMemo<SubmitResultRequest>(() => {
+    return {
+      scenarios: years
+        .map((y) => {
+          const scenarioCode = pickedPlanIdByYear[y];
+          if (!scenarioCode) return null;
+          return { case_year: y, scenario_code: scenarioCode };
+        })
+        .filter(Boolean) as Array<{ case_year: number; scenario_code: string }>,
+    };
+  }, [years, pickedPlanIdByYear]);
+
   const [isOutcomeOpen, setIsOutcomeOpen] = useState(false);
   const [outcomeStep, setOutcomeStep] = useState<RefundOutcomeStep>("review");
 
-  const onSubmit = () => {
+  // ✅ 선택 완료: POST /api/result/{caseId}
+  const onSubmit = async () => {
     if (!isAllYearsPicked) return;
-    setOutcomeStep("review");
-    setIsOutcomeOpen(true);
+    if (!caseIdParam) return;
+
+    const numericCaseId = Number(caseIdParam);
+    if (!Number.isFinite(numericCaseId)) {
+      alert("caseId가 올바르지 않습니다.");
+      return;
+    }
+
+    // 방어: 혹시 scenarios가 비어있으면 중단
+    if (!submitPayload.scenarios.length) {
+      alert("선택된 플랜이 없습니다.");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      const res = await postCalculationResult(numericCaseId, submitPayload);
+
+      if (!res.isSuccess) {
+        alert(res.message ?? "계산 결과 저장에 실패했습니다.");
+        return;
+      }
+
+      // (선택) 서버가 내려준 case_id 사용 가능
+      // const savedCaseId = res.result.case_id;
+
+      setOutcomeStep("review");
+      setIsOutcomeOpen(true);
+    } catch (e) {
+      console.error(e);
+      alert("계산 결과 저장 중 오류가 발생했습니다. 콘솔을 확인해 주세요.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -312,11 +382,14 @@ export default function CalculationCompare({ year }: Props) {
               </div>
             )}
 
-            {!loading && !errorMsg && activeYear !== null && plans.length === 0 && (
-              <div className="py-20 text-center text-gray-500 text-sm">
-                선택한 연도에 표시할 플랜이 없습니다.
-              </div>
-            )}
+            {!loading &&
+              !errorMsg &&
+              activeYear !== null &&
+              plans.length === 0 && (
+                <div className="py-20 text-center text-gray-500 text-sm">
+                  선택한 연도에 표시할 플랜이 없습니다.
+                </div>
+              )}
 
             {/* 카드들 */}
             {!loading && !errorMsg && plans.length > 0 && (
@@ -383,15 +456,15 @@ export default function CalculationCompare({ year }: Props) {
             <button
               type="button"
               onClick={onSubmit}
-              disabled={!isAllYearsPicked || loading || !!errorMsg}
+              disabled={!isAllYearsPicked || loading || !!errorMsg || submitting}
               className={cn(
                 "h-[41px] w-[144px] rounded-[7px] border px-4 text-sm font-medium transition",
-                !loading && !errorMsg && isAllYearsPicked
+                !loading && !errorMsg && isAllYearsPicked && !submitting
                   ? "border-[#64A5FF] text-[#64A5FF] hover:bg-blue-50"
                   : "cursor-not-allowed border-gray-200 text-gray-300"
               )}
             >
-              선택 완료
+              {submitting ? "저장 중..." : "선택 완료"}
             </button>
           </div>
         </div>
@@ -406,11 +479,8 @@ export default function CalculationCompare({ year }: Props) {
           onConfirm={() => setOutcomeStep("completed")}
           onDownloadPdf={() => console.log("PDF 출력하기")}
           onSelectCustomer={() => {
-            // 다음 고객 진행 전 세션 정리
-            // sessionStorage.removeItem("caseId");
-            // sessionStorage.removeItem("activeYear");
             setIsOutcomeOpen(false);
-            navigate("/");
+            navigate("/", { replace: true });
           }}
         />
       </div>

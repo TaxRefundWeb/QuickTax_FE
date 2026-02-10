@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import logo from "../../assets/logo.png";
 
 type Props = {
   open: boolean;
@@ -33,74 +34,85 @@ export default function FindAccountModal({ open, onClose }: Props) {
         alignItems: "center",
         justifyContent: "center",
         zIndex: 9999,
+        padding: 16,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: 450,
+          width: 420,
+          maxWidth: "100%",
           background: "#fff",
-          borderRadius: 14,
-          padding: "20px 20px 18px",
+          borderRadius: 16,
+          padding: "32px 28px 24px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
+          textAlign: "center",
         }}
       >
-        {/* 헤더 */}
+        {/* 로고 */}
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
+            justifyContent: "center",
+            marginBottom: 20,
           }}
         >
-          <div
-            id="find-account-title"
+          <img
+            src={logo}
+            alt="logo"
             style={{
-              fontSize: 18,
-              fontWeight: 800,
-              color: "#111827",
+              width: 64,
+              height: 64,
+              objectFit: "contain",
             }}
-          >
-            아이디 / 비밀번호 찾기
-          </div>
+          />
+        </div>
+
+        {/* 타이틀 */}
+        <div
+          id="find-account-title"
+          style={{
+            fontSize: 25,
+            fontWeight: 800,
+            color: "#111827",
+            marginBottom: 12,
+          }}
+        >
+          아이디 / 비밀번호 찾기
         </div>
 
         {/* 내용 */}
         <div
           style={{
-            fontSize: 20,
-            lineHeight: 1.5,
-            color: "#374151",
-            marginBottom: 0,
+            fontSize: 15,
+            lineHeight: 1.6,
+            color: "#4B5563",
+            marginBottom: 24,
+            whiteSpace: "pre-line",
           }}
         >
           계정 관련 문의는 아래로 연락 부탁드립니다.
-          <br />
-          • 이메일: Iwantgohome@naver.com
-          <br />
-          • 전화: 010-xxxx-xxxx
+          {"\n"}• 이메일: Iwantgohome@naver.com
+          {"\n"}• 전화: 010-xxxx-xxxx
         </div>
 
         {/* 버튼 */}
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            style={{
-              height: 36,
-              padding: "0 16px",
-              borderRadius: 10,
-              border: "none",
-              background: "#64A5FF",
-              color: "#fff",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            확인
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          style={{
+            width: "100%",
+            height: 44,
+            borderRadius: 12,
+            border: "none",
+            background: "#0061FE",
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          확인
+        </button>
       </div>
     </div>
   );

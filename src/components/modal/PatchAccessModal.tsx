@@ -6,7 +6,7 @@ type Props = {
   onClose: () => void;
 };
 
-export default function LoginFailModal({ open, onClose }: Props) {
+export default function PatchAccessModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
 
@@ -25,7 +25,7 @@ export default function LoginFailModal({ open, onClose }: Props) {
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="login-fail-title"
+      aria-labelledby="patch-access-title"
       style={{
         position: "fixed",
         inset: 0,
@@ -70,7 +70,7 @@ export default function LoginFailModal({ open, onClose }: Props) {
 
         {/* 타이틀 */}
         <div
-          id="login-fail-title"
+          id="patch-access-title"
           style={{
             fontSize: 25,
             fontWeight: 800,
@@ -78,7 +78,7 @@ export default function LoginFailModal({ open, onClose }: Props) {
             marginBottom: 12,
           }}
         >
-          로그인 실패
+          일부 항목은 수정할 수 없어요
         </div>
 
         {/* 내용 */}
@@ -91,11 +91,13 @@ export default function LoginFailModal({ open, onClose }: Props) {
             whiteSpace: "pre-line",
           }}
         >
-          아이디 또는 비밀번호가 올바르지 않습니다.
+          이름, 주민등록번호, 전화번호, 국적코드, 
+          <br/>국적은 수정이 불가능합니다.
           <br/>
-          계정 관련 문의는 아래로 연락 부탁드립니다.
-          {"\n"}• 이메일: Iwantgohome@naver.com
-          {"\n"}• 전화: 010-xxxx-xxxx
+          <br/>해당 정보 변경이 필요할 경우
+          <br/>관리자에게 문의해주세요.
+          <br/>• 이메일: Iwantgohome@naver.com
+          <br/>• 전화: 010-xxxx-xxxx
         </div>
 
         {/* 버튼 */}

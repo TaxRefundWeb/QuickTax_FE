@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { patchCustomer } from "../../lib/api/customers";
 import { api } from "../../lib/api/client";
+import PatchModal from "../../components/modal/PatchModal";
+import PatchAccessModal from "../../components/modal/PatchAccessModal";
 
 type CustomerForm = {
   name: string;
@@ -18,9 +20,6 @@ type CustomerForm = {
 
 type ConfirmNavState = { customerId?: number };
 
-// 서버에서 내려온 고객 모델(필요한 필드만)
-// Swagger 기준으로 final_fee_percent는 string.
-// 혹시 서버가 number로 내려줄 수도 있으니 string | number로 안전하게 처리.
 type CustomerDetail = {
   name: string;
   rrn: string;
@@ -49,7 +48,8 @@ function formatPhone(value: string) {
   if (d.startsWith("02")) {
     if (d.length <= 2) return d;
     if (d.length <= 5) return `${d.slice(0, 2)}-${d.slice(2)}`;
-    if (d.length <= 9) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+    if (d.length <= 9)
+      return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
     return `${d.slice(0, 2)}-${d.slice(2, 6)}-${d.slice(6)}`;
   }
 
@@ -58,7 +58,6 @@ function formatPhone(value: string) {
   return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
 }
 
-/** 은행 옵션(드롭다운에 있는 값들) */
 const BANK_OPTIONS = [
   "KB국민",
   "신한",
@@ -74,11 +73,9 @@ function isKnownBank(bank: string) {
   return BANK_OPTIONS.includes(bank as any);
 }
 
-// 서버 → UI폼 매핑 (직접입력 자동 처리)
 function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
   const serverBank = (c.bank ?? "").trim();
 
-  // 옵션에 있으면 그대로, 없으면 custom으로 돌리고 bankCustom에 서버 값을 넣기
   const bank =
     serverBank && isKnownBank(serverBank) ? serverBank : serverBank ? "custom" : "";
 
@@ -98,23 +95,20 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
   };
 }
 
-/** PATCH 바디로 변환 (서버 필드명) */
 function toPatchPayload(f: CustomerForm) {
   const bankName = (f.bank === "custom" ? f.bankCustom : f.bank).trim();
-
-  // Swagger가 string이라면 string으로 보내는 게 안전
   const fee = f.finalFee.replace(/[^\d.]/g, "").trim();
 
   return {
     name: f.name.trim(),
-    rrn: onlyDigits(f.rrn), // 하이픈 제거
-    phone: onlyDigits(f.phone), // 하이픈 제거
+    rrn: onlyDigits(f.rrn),
+    phone: onlyDigits(f.phone),
     address: f.address.trim(),
     bank: bankName,
     bank_number: onlyDigits(f.accountNumber).trim(),
     nationality_code: f.nationalityCode.trim(),
     nationality_name: f.nationality.trim(),
-    final_fee_percent: fee, // ✅ number 변환 제거 (string)
+    final_fee_percent: fee,
   };
 }
 
@@ -125,14 +119,22 @@ function stableStringify(obj: any) {
   return JSON.stringify(sorted);
 }
 
+// ✅ 수정 불가 필드만 원상복구(폼의 다른 수정값은 유지)
+function restoreLockedFields(prev: CustomerForm, original: CustomerForm): CustomerForm {
+  return {
+    ...prev,
+    name: original.name,
+    rrn: original.rrn,
+    phone: original.phone,
+    nationalityCode: original.nationalityCode,
+    nationality: original.nationality,
+  };
+}
+
 export default function ConfirmCustomerPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  /**
-   * 핵심: location.state가 없을 수 있으니(session 새로고침/직접 진입)
-   * sessionStorage로도 복구한다.
-   */
   const rawCustomerId =
     (location.state as ConfirmNavState | null)?.customerId ??
     (() => {
@@ -161,18 +163,19 @@ export default function ConfirmCustomerPage() {
     finalFee: "",
   });
 
-  // GET으로 받아온 원본(비교용 / clean 상태 기준)
   const [originalForm, setOriginalForm] = useState<CustomerForm | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
+  const [isPatchAccessModalOpen, setIsPatchAccessModalOpen] = useState(false);
 
   useEffect(() => {
     if (typeof customerId === "number") return;
     navigate("/", { replace: true });
   }, [customerId, navigate]);
 
-  // 서버에서 고객정보 불러와서 폼 채우기 + original 저장
   useEffect(() => {
     if (typeof customerId !== "number") return;
 
@@ -191,11 +194,9 @@ export default function ConfirmCustomerPage() {
         setForm(next);
         setOriginalForm(next);
 
-        // 보험용 저장
         sessionStorage.setItem("customerId", String(customerId));
       } catch (e) {
         console.error(e);
-        alert("고객 정보를 불러오지 못했어요. (콘솔 확인)");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -234,54 +235,71 @@ export default function ConfirmCustomerPage() {
     return true;
   }, [form]);
 
-  /** 변경 여부(dirty) */
   const isDirty = useMemo(() => {
-    if (!originalForm) return false; // 로딩 중엔 false 취급
+    if (!originalForm) return false;
     const a = toPatchPayload(originalForm);
     const b = toPatchPayload(form);
     return stableStringify(a) !== stableStringify(b);
   }, [originalForm, form]);
 
-  /** 버튼 라벨 */
+  // ✅ 수정 불가 필드 변경 체크
+  const lockedFieldsChanged = useMemo(() => {
+    if (!originalForm) return false;
+
+    return (
+      originalForm.name.trim() !== form.name.trim() ||
+      onlyDigits(originalForm.rrn) !== onlyDigits(form.rrn) ||
+      onlyDigits(originalForm.phone) !== onlyDigits(form.phone) ||
+      originalForm.nationalityCode.trim() !== form.nationalityCode.trim() ||
+      originalForm.nationality.trim() !== form.nationality.trim()
+    );
+  }, [originalForm, form]);
+
   const buttonLabel = isDirty ? "수정완료" : "입력완료";
 
-  /** 버튼 동작
-   * - clean: 입력완료 → Period 이동
-   * - dirty: 수정완료 → PATCH → GET(최신값 반영) → clean으로 복귀
-   */
   const handleSubmit = async () => {
     if (!isValid || submitting || loading) return;
     if (typeof customerId !== "number") return;
 
-    // 상태1: 변동 없음 → 바로 이동
     if (!isDirty) {
       sessionStorage.setItem("customerId", String(customerId));
-
       navigate(`/${customerId}/step1/period`, { state: { customerId } });
       return;
     }
 
-    // 상태2: 변경됨 → PATCH 후 최신 값 GET으로 다시 세팅
+    // ✅ 수정 불가 필드 변경 시: PATCH 막고 모달 오픈
+    if (lockedFieldsChanged) {
+      setIsPatchAccessModalOpen(true);
+      return;
+    }
+
     try {
       setSubmitting(true);
 
       const payload = toPatchPayload(form);
       await patchCustomer(customerId, payload);
 
-      // PATCH 후 최신 값 다시 GET (DB 기준으로 화면 반영)
       const res = await api.get(`/customers/${customerId}?t=${Date.now()}`);
       const customer: CustomerDetail = (res.data as any)?.result ?? res.data;
 
       const next = toCustomerFormFromServer(customer);
       setForm(next);
-      setOriginalForm(next); // clean 상태로 복귀
+      setOriginalForm(next);
 
-      alert("수정이 완료되었습니다.");
+      setIsPatchModalOpen(true);
     } catch (e) {
       console.error(e);
-      alert("고객 정보 수정(PATCH)에 실패했습니다.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ✅ “닫히면 무조건 원상복구” onClose 핸들러
+  const handleCloseAccessModal = () => {
+    setIsPatchAccessModalOpen(false);
+
+    if (originalForm) {
+      setForm((prev) => restoreLockedFields(prev, originalForm));
     }
   };
 
@@ -296,6 +314,14 @@ export default function ConfirmCustomerPage() {
 
   return (
     <div className="w-full">
+      <PatchModal
+        open={isPatchModalOpen}
+        onClose={() => setIsPatchModalOpen(false)}
+      />
+
+      {/* ✅ 닫힐 때마다 원상복구 */}
+      <PatchAccessModal open={isPatchAccessModalOpen} onClose={handleCloseAccessModal} />
+
       <div className="mx-auto w-full max-w-[540px]">
         <h1 className="mb-14 text-[24px] font-bold text-gray-900">
           입력하신 정보를 확인해주세요
@@ -308,7 +334,6 @@ export default function ConfirmCustomerPage() {
         )}
 
         <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-          {/* 이름 / 주민등록번호 */}
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">이름</label>
@@ -336,7 +361,6 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 전화번호 */}
           <div>
             <label className="mb-2 block text-base text-gray-600">전화번호</label>
             <input
@@ -349,7 +373,6 @@ export default function ConfirmCustomerPage() {
             />
           </div>
 
-          {/* 주소 */}
           <div>
             <label className="mb-2 block text-base text-gray-600">주소</label>
             <input
@@ -361,7 +384,6 @@ export default function ConfirmCustomerPage() {
             />
           </div>
 
-          {/* 은행 / 계좌번호 */}
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">은행</label>
@@ -441,7 +463,6 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 국적코드 / 국적 */}
           <div className="flex justify-between">
             <div>
               <label className="mb-2 block text-base text-gray-600">국적코드</label>
@@ -466,7 +487,6 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 최종 수수료 */}
           <div className="flex justify-end">
             <div className="flex flex-col">
               <label className="mb-2 text-base text-gray-600">최종 수수료</label>
@@ -480,7 +500,6 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          {/* 버튼 */}
           <div className="pt-11 flex justify-end">
             <button
               type="button"

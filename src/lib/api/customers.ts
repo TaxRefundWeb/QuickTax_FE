@@ -7,6 +7,7 @@ export type Customer = {
   birthdate?: string;
 };
 
+// Swagger 기준: final_fee_percent는 string
 export type CreateCustomerRequest = {
   name: string;
   rrn: string;
@@ -16,7 +17,7 @@ export type CreateCustomerRequest = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: number;
+  final_fee_percent: string;
 };
 
 export type UpdateCustomerRequest = Partial<CreateCustomerRequest>;
@@ -70,10 +71,13 @@ export type PatchCustomerPayload = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: number;
+  final_fee_percent: string;
 };
 
-export async function patchCustomer(customerId: number, body: PatchCustomerPayload) {
+export async function patchCustomer(
+  customerId: number,
+  body: PatchCustomerPayload
+) {
   const res = await api.patch(`/customers/${customerId}`, body);
   return res.data;
 }

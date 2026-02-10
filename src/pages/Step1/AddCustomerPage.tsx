@@ -13,7 +13,7 @@ export type CustomerForm = {
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
-  finalFee: string; // UI는 문자열로 들고 있다가, 전송할 때 number로 변환
+  finalFee: string; // UI는 문자열로 들고 있다가, 전송할 때 string으로 정제해서 보냄
 };
 
 // 백엔드 신규 고객 등록 Request Body 스펙
@@ -26,7 +26,7 @@ type CreateCustomerRequest = {
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: number;
+  final_fee_percent: string; // ✅ Swagger 기준 string
 };
 
 function onlyDigits(v: string) {
@@ -56,8 +56,8 @@ function formatPhone(value: string) {
 
 // UI 폼 → 백엔드 Request Body 변환
 function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
-  const feeText = onlyDigits(form.finalFee);
-  const fee = feeText ? Number(feeText) : 0;
+  // ✅ "2", "2%", "2.5" 같은 입력을 모두 숫자 문자열로 정제
+  const fee = form.finalFee.replace(/[^\d.]/g, "").trim();
 
   return {
     name: form.name.trim(),
@@ -68,7 +68,7 @@ function toCreateCustomerRequest(form: CustomerForm): CreateCustomerRequest {
     bank_number: form.accountNumber.replaceAll("-", "").trim(),
     nationality_code: form.nationalityCode.trim(),
     nationality_name: form.nationality.trim(),
-    final_fee_percent: fee,
+    final_fee_percent: fee, // ✅ number -> string
   };
 }
 
@@ -104,9 +104,15 @@ export default function AddCustomerPage() {
       return;
     }
 
-    // 최종 수수료: 숫자만
+    // 최종 수수료: 숫자/소수점만 허용 (원래는 숫자만이었는데, fee가 "2.5"도 올 수 있으면 이게 더 안전)
     if (name === "finalFee") {
-      setForm((prev) => ({ ...prev, finalFee: onlyDigits(value) }));
+      const cleaned = value.replace(/[^\d.]/g, "");
+      // 소수점 2개 이상 방지
+      const parts = cleaned.split(".");
+      const normalized =
+        parts.length <= 2 ? cleaned : `${parts[0]}.${parts.slice(1).join("")}`;
+
+      setForm((prev) => ({ ...prev, finalFee: normalized }));
       return;
     }
 

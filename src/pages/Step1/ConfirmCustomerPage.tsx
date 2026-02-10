@@ -1,4 +1,3 @@
-// src/pages/Step1/ConfirmCustomerPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { patchCustomer } from "../../lib/api/customers";
@@ -14,22 +13,24 @@ type CustomerForm = {
   accountNumber: string;
   nationalityCode: string;
   nationality: string;
-  finalFee: string;
+  finalFee: string; // UI 입력은 문자열로 유지
 };
 
 type ConfirmNavState = { customerId?: number };
 
 // 서버에서 내려온 고객 모델(필요한 필드만)
+// Swagger 기준으로 final_fee_percent는 string.
+// 혹시 서버가 number로 내려줄 수도 있으니 string | number로 안전하게 처리.
 type CustomerDetail = {
   name: string;
   rrn: string;
   phone: string;
   address: string;
-  bank: string; // 서버는 직접입력 은행명도 여기로 내려올 수 있음
+  bank: string;
   bank_number: string;
   nationality_code: string;
   nationality_name: string;
-  final_fee_percent: number;
+  final_fee_percent: string | number;
 };
 
 function onlyDigits(v: string) {
@@ -85,14 +86,14 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
 
   return {
     name: c.name ?? "",
-    rrn: formatRRN(c.rrn ?? ""),
-    phone: formatPhone(c.phone ?? ""),
-    address: c.address ?? "",
+    rrn: formatRRN(String(c.rrn ?? "")),
+    phone: formatPhone(String(c.phone ?? "")),
+    address: String(c.address ?? ""),
     bank,
     bankCustom,
-    accountNumber: c.bank_number ?? "",
-    nationalityCode: c.nationality_code ?? "",
-    nationality: c.nationality_name ?? "",
+    accountNumber: String(c.bank_number ?? ""),
+    nationalityCode: String(c.nationality_code ?? ""),
+    nationality: String(c.nationality_name ?? ""),
     finalFee: String(c.final_fee_percent ?? ""),
   };
 }
@@ -100,6 +101,9 @@ function toCustomerFormFromServer(c: CustomerDetail): CustomerForm {
 /** PATCH 바디로 변환 (서버 필드명) */
 function toPatchPayload(f: CustomerForm) {
   const bankName = (f.bank === "custom" ? f.bankCustom : f.bank).trim();
+
+  // Swagger가 string이라면 string으로 보내는 게 안전
+  const fee = f.finalFee.replace(/[^\d.]/g, "").trim();
 
   return {
     name: f.name.trim(),
@@ -110,7 +114,7 @@ function toPatchPayload(f: CustomerForm) {
     bank_number: onlyDigits(f.accountNumber).trim(),
     nationality_code: f.nationalityCode.trim(),
     nationality_name: f.nationality.trim(),
-    final_fee_percent: Number(f.finalFee.replace(/[^\d.]/g, "")),
+    final_fee_percent: fee, // ✅ number 변환 제거 (string)
   };
 }
 
@@ -126,7 +130,7 @@ export default function ConfirmCustomerPage() {
   const location = useLocation();
 
   /**
-   * ✅ 핵심: location.state가 없을 수 있으니(session 새로고침/직접 진입)
+   * 핵심: location.state가 없을 수 있으니(session 새로고침/직접 진입)
    * sessionStorage로도 복구한다.
    */
   const rawCustomerId =
@@ -187,7 +191,7 @@ export default function ConfirmCustomerPage() {
         setForm(next);
         setOriginalForm(next);
 
-        // ✅ 보험용 저장
+        // 보험용 저장
         sessionStorage.setItem("customerId", String(customerId));
       } catch (e) {
         console.error(e);
@@ -249,20 +253,15 @@ export default function ConfirmCustomerPage() {
     if (!isValid || submitting || loading) return;
     if (typeof customerId !== "number") return;
 
-    // ✅ 상태1: 변동 없음 → 바로 이동
+    // 상태1: 변동 없음 → 바로 이동
     if (!isDirty) {
       sessionStorage.setItem("customerId", String(customerId));
 
-      /**
-       * ✅ 핵심 수정:
-       * Period 라우트가 `/:customerId/step1/period` 형태라면
-       * 절대경로도 customerId 포함해서 이동해야 로그인으로 튕기지 않아!
-       */
       navigate(`/${customerId}/step1/period`, { state: { customerId } });
       return;
     }
 
-    // ✅ 상태2: 변경됨 → PATCH 후 최신 값 GET으로 다시 세팅
+    // 상태2: 변경됨 → PATCH 후 최신 값 GET으로 다시 세팅
     try {
       setSubmitting(true);
 

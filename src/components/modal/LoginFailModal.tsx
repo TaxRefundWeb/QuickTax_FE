@@ -72,7 +72,7 @@ export default function LoginFailModal({ open, onClose }: Props) {
         <div
           id="login-fail-title"
           style={{
-            fontSize: 25,
+            fontSize: 22,
             fontWeight: 800,
             color: "#111827",
             marginBottom: 12,

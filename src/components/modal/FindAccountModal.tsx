@@ -72,7 +72,7 @@ export default function FindAccountModal({ open, onClose }: Props) {
         <div
           id="find-account-title"
           style={{
-            fontSize: 25,
+            fontSize: 22,
             fontWeight: 800,
             color: "#111827",
             marginBottom: 12,

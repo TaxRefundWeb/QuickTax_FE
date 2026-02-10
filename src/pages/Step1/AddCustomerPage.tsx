@@ -360,7 +360,7 @@ export default function AddCustomerPage() {
           </div>
 
           {/* 입력완료 */}
-          <div className="pt-11 flex justify-end">
+          <div className="pt-6 pb-8 flex justify-end">
             <button
               type="button"
               onClick={handleSubmit}

@@ -119,15 +119,12 @@ function stableStringify(obj: any) {
   return JSON.stringify(sorted);
 }
 
-// ✅ 수정 불가 필드만 원상복구(폼의 다른 수정값은 유지)
+// ✅ 수정 불가 필드(name, rrn)만 원상복구 (나머지 수정값은 유지)
 function restoreLockedFields(prev: CustomerForm, original: CustomerForm): CustomerForm {
   return {
     ...prev,
     name: original.name,
     rrn: original.rrn,
-    phone: original.phone,
-    nationalityCode: original.nationalityCode,
-    nationality: original.nationality,
   };
 }
 
@@ -242,16 +239,13 @@ export default function ConfirmCustomerPage() {
     return stableStringify(a) !== stableStringify(b);
   }, [originalForm, form]);
 
-  // ✅ 수정 불가 필드 변경 체크
+  // ✅ 수정 불가 필드 변경 체크: 이름(name), 주민등록번호(rrn)만
   const lockedFieldsChanged = useMemo(() => {
     if (!originalForm) return false;
 
     return (
       originalForm.name.trim() !== form.name.trim() ||
-      onlyDigits(originalForm.rrn) !== onlyDigits(form.rrn) ||
-      onlyDigits(originalForm.phone) !== onlyDigits(form.phone) ||
-      originalForm.nationalityCode.trim() !== form.nationalityCode.trim() ||
-      originalForm.nationality.trim() !== form.nationality.trim()
+      onlyDigits(originalForm.rrn) !== onlyDigits(form.rrn)
     );
   }, [originalForm, form]);
 
@@ -267,7 +261,7 @@ export default function ConfirmCustomerPage() {
       return;
     }
 
-    // ✅ 수정 불가 필드 변경 시: PATCH 막고 모달 오픈
+    // ✅ 이름/주민번호 변경 시: PATCH 막고 모달 오픈
     if (lockedFieldsChanged) {
       setIsPatchAccessModalOpen(true);
       return;
@@ -294,7 +288,7 @@ export default function ConfirmCustomerPage() {
     }
   };
 
-  // ✅ “닫히면 무조건 원상복구” onClose 핸들러
+  // ✅ “닫히면 무조건 원상복구” (이름/주민번호만)
   const handleCloseAccessModal = () => {
     setIsPatchAccessModalOpen(false);
 
@@ -319,8 +313,11 @@ export default function ConfirmCustomerPage() {
         onClose={() => setIsPatchModalOpen(false)}
       />
 
-      {/* ✅ 닫힐 때마다 원상복구 */}
-      <PatchAccessModal open={isPatchAccessModalOpen} onClose={handleCloseAccessModal} />
+      {/* ✅ 닫힐 때마다 이름/주민번호 원상복구 */}
+      <PatchAccessModal
+        open={isPatchAccessModalOpen}
+        onClose={handleCloseAccessModal}
+      />
 
       <div className="mx-auto w-full max-w-[540px]">
         <h1 className="mb-14 text-[24px] font-bold text-gray-900">
@@ -500,7 +497,8 @@ export default function ConfirmCustomerPage() {
             </div>
           </div>
 
-          <div className="pt-11 flex justify-end">
+          {/* 버튼 */}
+          <div className="pt-6 pb-8 pt-11 flex justify-end">
             <button
               type="button"
               onClick={handleSubmit}

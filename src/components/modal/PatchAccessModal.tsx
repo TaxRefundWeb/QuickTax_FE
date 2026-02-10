@@ -72,7 +72,7 @@ export default function PatchAccessModal({ open, onClose }: Props) {
         <div
           id="patch-access-title"
           style={{
-            fontSize: 25,
+            fontSize: 22,
             fontWeight: 800,
             color: "#111827",
             marginBottom: 12,
@@ -91,11 +91,10 @@ export default function PatchAccessModal({ open, onClose }: Props) {
             whiteSpace: "pre-line",
           }}
         >
-          이름, 주민등록번호, 전화번호, 국적코드, 
-          <br/>국적은 수정이 불가능합니다.
-          <br/>
+          이름, 주민등록번호는 수정이 불가능합니다.
           <br/>해당 정보 변경이 필요할 경우
           <br/>관리자에게 문의해주세요.
+          <br/>
           <br/>• 이메일: Iwantgohome@naver.com
           <br/>• 전화: 010-xxxx-xxxx
         </div>

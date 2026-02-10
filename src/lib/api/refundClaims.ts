@@ -23,9 +23,8 @@ export type RefundClaimV2Case = {
   child_yn: boolean;
   reduction_yn: boolean;
   companies: RefundClaimV2Company[];
-
-  spouse?: RefundClaimV2Spouse;
-  children?: RefundClaimV2Child[];
+  spouse: RefundClaimV2Spouse | null;
+  children: RefundClaimV2Child[];
 };
 
 export type CreateRefundClaimV2Payload = {

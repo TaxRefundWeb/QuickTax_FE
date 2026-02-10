@@ -420,8 +420,8 @@ export default function ExistingCustomerPage() {
 
   const handleFinalSubmit = async () => {
     if (!allValid) return;
-    if (!Number.isFinite(customerId)) return;
-    if (!Number.isFinite(caseId)) return;
+    if (customerId == null) return;
+    if (caseId == null) return;
 
     try {
       const payload = buildRefundClaimPayloadV2({
@@ -429,7 +429,7 @@ export default function ExistingCustomerPage() {
         formsByYear,
       });
 
-      // ✅ swagger: POST /api/refund-claims/{caseId}
+      // swagger: POST /api/refund-claims/{caseId}
       const res = await createRefundClaim(caseId, payload);
 
       navigate(`/${caseId}/step2/ocr-compare`, {

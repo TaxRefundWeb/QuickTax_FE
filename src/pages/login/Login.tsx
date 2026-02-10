@@ -3,6 +3,7 @@ import styles from "./Login.module.css";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
 import LoginFailModal from "../../components/modal/LoginFailModal";
+import SignupModal from "../../components/modal/SignupModal"; // ✅ 추가
 
 import { login } from "../../lib/api/auth";
 import { useCustomerListModal } from "../../contexts/customerListModalContext";
@@ -14,6 +15,7 @@ export default function Login() {
 
   const [isFindModalOpen, setIsFindModalOpen] = useState(false);
   const [isLoginFailOpen, setIsLoginFailOpen] = useState(false);
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false); // ✅ 추가
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { openLoginModal } = useCustomerListModal();
@@ -112,7 +114,11 @@ export default function Login() {
               아이디 / 비밀번호 찾기
             </button>
 
-            <button type="button" className={styles.link}>
+            <button
+              type="button"
+              className={styles.link}
+              onClick={() => setIsSignupModalOpen(true)}
+            >
               회원가입
             </button>
           </div>
@@ -126,6 +132,12 @@ export default function Login() {
       <LoginFailModal
         open={isLoginFailOpen}
         onClose={() => setIsLoginFailOpen(false)}
+      />
+
+      {/* ✅ 회원가입 모달 연결 */}
+      <SignupModal
+        open={isSignupModalOpen}
+        onClose={() => setIsSignupModalOpen(false)}
       />
     </div>
   );

@@ -3,11 +3,12 @@ import styles from "./Login.module.css";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
 import LoginFailModal from "../../components/modal/LoginFailModal";
-import SignupModal from "../../components/modal/SignupModal"; // ✅ 추가
+import SignupModal from "../../components/modal/SignupModal";
 
 import { login } from "../../lib/api/auth";
 import { useCustomerListModal } from "../../contexts/customerListModalContext";
 import { getCustomers } from "../../lib/api/customers";
+import { checkHealth } from "../../lib/api/health";
 
 export default function Login() {
   const [id, setId] = useState("");
@@ -15,31 +16,52 @@ export default function Login() {
 
   const [isFindModalOpen, setIsFindModalOpen] = useState(false);
   const [isLoginFailOpen, setIsLoginFailOpen] = useState(false);
-  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false); // ✅ 추가
+  const [isSignupModalOpen, setIsSignupModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { openLoginModal } = useCustomerListModal();
 
-  // 모달 중복 오픈 방지(StrictMode/useEffect 2회 실행 대비)
+  // 로그인 모달 중복 오픈 방지
   const openedOnceRef = useRef(false);
 
-  // 쿠키(accessToken)로 이미 로그인 상태면, 루트 진입 시 모달 바로 오픈
+  // health 체크 중복 실행 방지 (StrictMode 대응)
+  const healthOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (healthOnceRef.current) return;
+    healthOnceRef.current = true;
+
+    let alive = true;
+
+    checkHealth()
+      .then((msg) => {
+        if (!alive) return;
+        console.log("🩺 health OK:", msg);
+      })
+      .catch((err) => {
+        if (!alive) return;
+        console.error("🩺 health FAIL:", err);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     let alive = true;
 
     (async () => {
-      // 이미 한 번 열었다면 더 이상 시도하지 않음
       if (openedOnceRef.current) return;
 
       try {
         await getCustomers(); // 200이면 로그인 상태
         if (!alive) return;
 
-        // 여기서 락 걸고 1회만 오픈
         openedOnceRef.current = true;
         openLoginModal();
       } catch {
-        // not logged in
+        // 로그인 안 된 상태 → 아무것도 안 함
       }
     })();
 
@@ -47,7 +69,6 @@ export default function Login() {
       alive = false;
     };
   }, [openLoginModal]);
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -58,9 +79,8 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
-      await login(id, pw); // 성공하면 HttpOnly 쿠키에 accessToken 저장됨
+      await login(id, pw); // HttpOnly 쿠키 저장
 
-      // 로그인 성공 시에도 중복 오픈 방지
       if (!openedOnceRef.current) {
         openedOnceRef.current = true;
         openLoginModal();
@@ -101,7 +121,11 @@ export default function Login() {
             />
           </div>
 
-          <button className={styles.button} type="submit" disabled={isSubmitting}>
+          <button
+            className={styles.button}
+            type="submit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? "로그인 중..." : "로그인하기"}
           </button>
 
@@ -129,12 +153,12 @@ export default function Login() {
         open={isFindModalOpen}
         onClose={() => setIsFindModalOpen(false)}
       />
+
       <LoginFailModal
         open={isLoginFailOpen}
         onClose={() => setIsLoginFailOpen(false)}
       />
 
-      {/* ✅ 회원가입 모달 연결 */}
       <SignupModal
         open={isSignupModalOpen}
         onClose={() => setIsSignupModalOpen(false)}

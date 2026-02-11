@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import styles from "./Login.module.css";
+import logo from "../../assets/logo2.png";
 
 import FindAccountModal from "../../components/modal/FindAccountModal";
 import LoginFailModal from "../../components/modal/LoginFailModal";
@@ -97,7 +98,10 @@ export default function Login() {
     <div className={styles.wrapper}>
       <div className={styles.blueArc} />
       <div className={styles.container}>
-        <div className={styles.title}>QuickTax</div>
+        <div className={styles.titleRow}>
+          <img src={logo} alt="QuickTax Logo" className={styles.logo} />
+          <span className={styles.title}>QuickTax</span>
+        </div>
 
         <form className={styles.form} onSubmit={handleSubmit}>
           <div className={styles.field}>

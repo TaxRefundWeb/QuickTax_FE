@@ -1,35 +1,19 @@
 .wrapper {
   position: fixed;
   inset: 0;
-  background: #ffffff;
-  overflow: hidden; /* 반원 잘리게 */
+  overflow: hidden;
+
+  background-image: url("../../assets/background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center; /* 세로 가운데 */
 }
-
-/* 파란 반원 */
-.blueArc {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%); 
-  width: 100vw; 
-  height: 90vh;
-  background: #0066ff;
-
-  /* clip-path의 가로 비율을 50%로 주면 width 안을 꽉 채운 완벽한 반원이 됩니다 */
-  /* 더 뾰족하게 하고 싶다면 50%보다 더 작은 값을 써보세요 */
-  clip-path: ellipse(50% 100% at 50% 100%);
-  
-  z-index: 0;
-}
-
-
 /* 실제 콘텐츠 */
 .container {
-  position: relative;
-  z-index: 1;             /* 반원 위로 */
+  position: relative;         
   text-align: center;
   margin-top: 100px;      /* 전체적으로 좀 내리기 */
 }
@@ -103,4 +87,17 @@
 
 .title {
   font-size: 34px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px; /* 로고와 글자 사이 간격 */
+}
+
+.logo {
+  height: 70px;
+  object-fit: contain;
+  transform: translateY(-14px); /* 로고 높이 */
 }

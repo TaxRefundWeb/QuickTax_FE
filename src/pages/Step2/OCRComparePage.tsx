@@ -3,7 +3,13 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Document, Page, pdfjs } from "react-pdf";
 
 import OCRresult, { type OcrSection } from "../../components/card/OCRresult";
-import { getCaseOcr, type OcrStatus, type OcrYearData } from "../../lib/api/ocr";
+import {
+  getCaseOcr,
+  patchCaseOcr,
+  type OcrStatus,
+  type OcrYearData,
+} from "../../lib/api/ocr";
+import PatchModal from "../../components/modal/PatchModal";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -15,7 +21,7 @@ type PeriodState = {
 };
 
 type YearForm = {
-  workplaces: any[];
+  workplaces: unknown[];
   reduceStart: string | null;
   reduceEnd: string | null;
   docDate: string;
@@ -23,7 +29,7 @@ type YearForm = {
   spouseName: string;
   spouseRrn: string;
   child: string | null;
-  children: any[];
+  children: unknown[];
 };
 
 type OcrNavState = {
@@ -54,7 +60,7 @@ const OCR_SECTIONS: OcrSection[] = [
       { label: "특별소득공제 합계", badge: "36", field: "totalSpecialIncomeDeductionTotalAmount" },
       { label: "차감소득금액", badge: "37", field: "adjustedIncomeAmount" },
       { label: "그 외 소득공제 계", badge: "47", field: "otherIncomeDeductionTotalAmount" },
-      { label: "그 외 소득공제 추가", badge: "-", field: "otherIncomeDeductionExtra" }, // ✅ 추가
+      { label: "그 외 소득공제 추가", badge: "-", field: "otherIncomeDeductionExtra" },
     ],
   },
   {
@@ -68,12 +74,12 @@ const OCR_SECTIONS: OcrSection[] = [
   {
     title: "4. 세액공제",
     rows: [
-      { label: "근로소득", badge: "56", field: "earnedIncomeTotalAmount" }, // ⚠️ 의미 확정되면 라벨 수정 추천
+      { label: "근로소득", badge: "56", field: "earnedIncomeTotalAmount" },
       { label: "자녀 공제대상자녀", badge: "57-1", field: "eligibleChildrenCount" },
       { label: "자녀 출산/입양자", badge: "57-2", field: "childbirthAdoptionCount" },
       { label: "월세액 세액 공제금액", badge: "70-2", field: "monthlyRentTaxCreditAmount" },
-      { label: "기부금 합계", badge: "-", field: "donationTotalAmount" }, // 추가
-      { label: "표준세액공제", badge: "-", field: "standardTaxCredit" }, // 추가
+      { label: "기부금 합계", badge: "-", field: "donationTotalAmount" },
+      { label: "표준세액공제", badge: "-", field: "standardTaxCredit" },
       { label: "세액공제 계", badge: "71", field: "totalTaxCreditAmount" },
       { label: "결정세액", badge: "72", field: "determinedTaxAmountOrigin" },
     ],
@@ -83,6 +89,9 @@ const OCR_SECTIONS: OcrSection[] = [
 export default function OcrComparePage() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // PATCH 성공 모달
+  const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
 
   // URL에서 caseId 받기 (라우트: /:caseId/step2/ocr-compare)
   const { caseId: caseIdParam } = useParams<{ caseId: string }>();
@@ -97,8 +106,10 @@ export default function OcrComparePage() {
   const startYear = navState?.period?.startYear ?? sessionStorage.getItem("startYear") ?? "";
   const endYear = navState?.period?.endYear ?? sessionStorage.getItem("endYear") ?? "";
 
-  const rawCustomerId = navState?.period?.customerId ?? sessionStorage.getItem("customerId") ?? null;
-  const customerId = rawCustomerId === null || rawCustomerId === undefined ? null : Number(rawCustomerId);
+  const rawCustomerId =
+    navState?.period?.customerId ?? sessionStorage.getItem("customerId") ?? null;
+  const customerId =
+    rawCustomerId === null || rawCustomerId === undefined ? null : Number(rawCustomerId);
 
   const yearsFromPrev =
     navState?.years ??
@@ -120,7 +131,9 @@ export default function OcrComparePage() {
       if (!saved) return {};
       try {
         const obj = JSON.parse(saved);
-        return obj && typeof obj === "object" ? (obj as Record<string, YearForm>) : {};
+        return obj && typeof obj === "object"
+          ? (obj as Record<string, YearForm>)
+          : {};
       } catch {
         return {};
       }
@@ -132,7 +145,8 @@ export default function OcrComparePage() {
     if (Number.isFinite(customerId)) sessionStorage.setItem("customerId", String(customerId));
     if (Number.isFinite(caseId)) sessionStorage.setItem("caseId", String(caseId));
     if (yearsFromPrev.length > 0) sessionStorage.setItem("years", JSON.stringify(yearsFromPrev));
-    if (Object.keys(_formsByYear).length > 0) sessionStorage.setItem("formsByYear", JSON.stringify(_formsByYear));
+    if (Object.keys(_formsByYear).length > 0)
+      sessionStorage.setItem("formsByYear", JSON.stringify(_formsByYear));
   }, [startYear, endYear, customerId, caseId, yearsFromPrev, _formsByYear]);
 
   // 필수값 검증 + 리다이렉트
@@ -180,8 +194,27 @@ export default function OcrComparePage() {
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  const [draftByYear, setDraftByYear] = useState<Record<string, OcrYearData>>({});
+  const snapshotRef = useRef<Record<string, OcrYearData>>({});
+  const [isPatchLoading, setIsPatchLoading] = useState(false);
+
+  const isAnyDirty = useMemo(() => {
+    const snap = snapshotRef.current;
+    const years = Object.keys({ ...snap, ...draftByYear });
+    for (const y of years) {
+      const a = snap[y];
+      const b = draftByYear[y];
+      if (!a || !b) continue;
+      if (JSON.stringify(a) !== JSON.stringify(b)) return true;
+    }
+    return false;
+  }, [draftByYear]);
+
+  const submitButtonLabel = isAnyDirty ? "수정완료" : "입력완료";
+
   const handlePickFile = (picked: File) => {
-    const isPdf = picked.name.toLowerCase().endsWith(".pdf") || picked.type === "application/pdf";
+    const isPdf =
+      picked.name.toLowerCase().endsWith(".pdf") || picked.type === "application/pdf";
     if (!isPdf) {
       alert("PDF 파일만 업로드할 수 있어요!");
       return;
@@ -215,12 +248,37 @@ export default function OcrComparePage() {
         return;
       }
 
-      const list = res.result.data ?? []; // ✅ data null 방어
+      const list = res.result.data ?? [];
       const map: Record<string, OcrYearData> = {};
       for (const item of list) {
         map[String(item.caseYear)] = item;
       }
       setOcrByYear(map);
+
+      // draft/snapshot 초기화 (사용자 수정 덮어쓰기 방지)
+      setDraftByYear((prev) => {
+        const next = { ...prev };
+        for (const [y, d] of Object.entries(map)) {
+          if (!next[y]) next[y] = safeClone(d);
+        }
+        return next;
+      });
+
+      if (Object.keys(snapshotRef.current).length === 0) {
+        const snap: Record<string, OcrYearData> = {};
+        for (const [y, d] of Object.entries(map)) snap[y] = safeClone(d);
+        snapshotRef.current = snap;
+      } else {
+        const snap = { ...snapshotRef.current };
+        let changed = false;
+        for (const [y, d] of Object.entries(map)) {
+          if (!snap[y]) {
+            snap[y] = safeClone(d);
+            changed = true;
+          }
+        }
+        if (changed) snapshotRef.current = snap;
+      }
     } catch (e) {
       console.error(e);
       setOcrError("OCR 결과를 불러오지 못했어요.");
@@ -254,6 +312,58 @@ export default function OcrComparePage() {
     if (!activeYear) return null;
     return ocrByYear[activeYear] ?? null;
   }, [activeYear, ocrByYear]);
+
+  const currentDraft = useMemo(() => {
+    if (!activeYear) return null;
+    return draftByYear[activeYear] ?? currentOcr ?? null;
+  }, [activeYear, draftByYear, currentOcr]);
+
+  const handleChangeOcrField = (path: string, value: string) => {
+    if (!activeYear) return;
+
+    setDraftByYear((prev) => {
+      const base = prev[activeYear]
+        ? safeClone(prev[activeYear])
+        : currentOcr
+          ? safeClone(currentOcr)
+          : null;
+
+      if (!base) return prev;
+
+      setValueByPath(base as unknown as Record<string, unknown>, path, normalizeInputValue(value));
+      return { ...prev, [activeYear]: base };
+    });
+  };
+
+  // 입력완료/수정완료 버튼
+  const handleSubmitOcr = async () => {
+    if (!Number.isFinite(caseId)) return;
+    if (!isAnyDirty) return;
+
+    try {
+      setIsPatchLoading(true);
+
+      const body = buildPatchBodyFromDraftAllYears(draftByYear, openYears);
+      const res = await patchCaseOcr(caseId!, body);
+
+      if (!res.isSuccess) {
+        alert(res.message || "OCR 수정 저장에 실패했어요.");
+        return;
+      }
+
+      // 저장 성공 -> snapshot 갱신 -> 버튼이 다시 입력완료로
+      const next = { ...snapshotRef.current };
+      for (const y of Object.keys(draftByYear)) next[y] = safeClone(draftByYear[y]);
+      snapshotRef.current = next;
+
+      setIsPatchModalOpen(true);
+    } catch (e) {
+      console.error(e);
+      alert("수정 저장 중 오류가 발생했어요. 콘솔을 확인해주세요.");
+    } finally {
+      setIsPatchLoading(false);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -346,7 +456,11 @@ export default function OcrComparePage() {
                   handlePickFile(f);
                 }}
               >
-                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full text-left">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full text-left"
+                >
                   {selectedFileName ? (
                     <>
                       <div className="text-[13px] text-gray-700">{selectedFileName}</div>
@@ -394,7 +508,9 @@ export default function OcrComparePage() {
                       −
                     </button>
 
-                    <div className="min-w-[52px] text-center text-[12px] text-gray-500">{Math.round(scale * 100)}%</div>
+                    <div className="min-w-[52px] text-center text-[12px] text-gray-500">
+                      {Math.round(scale * 100)}%
+                    </div>
 
                     <button
                       type="button"
@@ -440,7 +556,9 @@ export default function OcrComparePage() {
                     {pdfError ? (
                       <div className="py-10 text-center text-[13px] text-red-500">
                         {pdfError}
-                        <div className="mt-2 text-[12px] text-gray-500">콘솔(F12) 에러 메시지를 확인해 주세요.</div>
+                        <div className="mt-2 text-[12px] text-gray-500">
+                          콘솔(F12) 에러 메시지를 확인해 주세요.
+                        </div>
                       </div>
                     ) : (
                       <Document
@@ -464,7 +582,9 @@ export default function OcrComparePage() {
                         error={
                           <div className="py-10 text-center text-[13px] text-red-500">
                             PDF를 불러오지 못했어요.
-                            <div className="mt-2 text-[12px] text-gray-500">콘솔(F12) 에러 메시지를 확인해 주세요.</div>
+                            <div className="mt-2 text-[12px] text-gray-500">
+                              콘솔(F12) 에러 메시지를 확인해 주세요.
+                            </div>
                           </div>
                         }
                       >
@@ -490,13 +610,20 @@ export default function OcrComparePage() {
                                     onClick={() => setPageNumber(p)}
                                     className={[
                                       "w-full rounded-[6px] border bg-white p-1 text-left transition",
-                                      active ? "border-[#64A5FF] ring-2 ring-[#64A5FF]/20" : "border-gray-200 hover:bg-gray-50",
+                                      active
+                                        ? "border-[#64A5FF] ring-2 ring-[#64A5FF]/20"
+                                        : "border-gray-200 hover:bg-gray-50",
                                       isPdfLoading && "opacity-50 cursor-not-allowed hover:bg-white",
                                     ].join(" ")}
                                     aria-label={`${p}페이지로 이동`}
                                   >
                                     <div className="overflow-hidden rounded-[4px]">
-                                      <Page pageNumber={p} scale={0.12} renderTextLayer={false} renderAnnotationLayer={false} />
+                                      <Page
+                                        pageNumber={p}
+                                        scale={0.12}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                      />
                                     </div>
                                     <div className="mt-1 text-center text-[11px] text-gray-500">{p}</div>
                                   </button>
@@ -507,7 +634,12 @@ export default function OcrComparePage() {
 
                           <div className="h-[558px] overflow-auto border border-gray-200 bg-white">
                             <div className="flex justify-center p-4">
-                              <Page pageNumber={pageNumber} scale={scale} renderTextLayer={false} renderAnnotationLayer={false} />
+                              <Page
+                                pageNumber={pageNumber}
+                                scale={scale}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                              />
                             </div>
                           </div>
                         </div>
@@ -561,7 +693,12 @@ export default function OcrComparePage() {
                   </div>
                 </div>
               ) : (
-                <OCRresult sections={OCR_SECTIONS} data={currentOcr} />
+                <OCRresult
+                  sections={OCR_SECTIONS}
+                  data={currentDraft}
+                  editable
+                  onChange={handleChangeOcrField}
+                />
               )}
 
               {/* 하단 버튼 */}
@@ -569,9 +706,14 @@ export default function OcrComparePage() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    className="h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50"
+                    disabled={isPatchLoading}
+                    onClick={handleSubmitOcr}
+                    className={[
+                      "h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50",
+                      isPatchLoading && "opacity-50 cursor-not-allowed hover:bg-white",
+                    ].join(" ")}
                   >
-                    수정하기
+                    {isPatchLoading ? "저장 중…" : submitButtonLabel}
                   </button>
 
                   <button
@@ -588,6 +730,9 @@ export default function OcrComparePage() {
           </div>
         </div>
       </div>
+
+      {/* PATCH 성공 모달 */}
+      <PatchModal open={isPatchModalOpen} onClose={() => setIsPatchModalOpen(false)} />
     </div>
   );
 }
@@ -625,4 +770,107 @@ function YearTabs({
       </div>
     </div>
   );
+}
+
+function safeClone<T>(v: T): T {
+  try {
+    return structuredClone(v);
+  } catch {
+    return JSON.parse(JSON.stringify(v)) as T;
+  }
+}
+
+function normalizeInputValue(v: string): number | string | null {
+  const s = String(v ?? "").trim();
+  if (s === "") return null;
+  const n = Number(s.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : s;
+}
+
+function setValueByPath(obj: Record<string, unknown>, path: string, value: unknown) {
+  const tokens: Array<string | number> = [];
+  const re = /([^[.\]]+)|\[(\d+)\]/g;
+
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(path))) {
+    if (m[1] !== undefined) tokens.push(m[1]);
+    if (m[2] !== undefined) tokens.push(Number(m[2]));
+  }
+  if (tokens.length === 0) return;
+
+  let cur: unknown = obj;
+
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const t = tokens[i];
+    const next = tokens[i + 1];
+
+    if (typeof cur !== "object" || cur === null) return;
+    const rec = cur as Record<string, unknown>;
+
+    const key = String(t);
+    const existing = rec[key];
+
+    if (existing === null || existing === undefined) {
+      rec[key] = typeof next === "number" ? ([] as unknown[]) : ({} as Record<string, unknown>);
+    }
+
+    cur = rec[key];
+  }
+
+  if (typeof cur !== "object" || cur === null) return;
+  const rec = cur as Record<string, unknown>;
+  const last = tokens[tokens.length - 1];
+  rec[String(last)] = value;
+}
+
+function toNum(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/,/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+function get(obj: unknown, key: string): unknown {
+  if (typeof obj !== "object" || obj === null) return undefined;
+  return (obj as Record<string, unknown>)[key];
+}
+
+function buildPatchBodyFromDraftAllYears(draftByYear: Record<string, OcrYearData>, openYears: number[]) {
+  const OCRData = openYears
+    .map((y) => String(y))
+    .map((yKey) => draftByYear[yKey])
+    .filter((d): d is OcrYearData => Boolean(d))
+    .map((d) => {
+      const u: unknown = d;
+
+      return {
+        case_year: toNum(get(u, "caseYear")),
+        total_salary: toNum(get(u, "totalSalary")),
+        earned_income_deduction_amount: toNum(get(u, "earnedIncomeDeductionAmount")),
+        earned_income_amount: toNum(get(u, "earnedIncomeAmount")),
+        basic_deduction_self_amount: toNum(get(u, "basicDeductionSelfAmount")),
+        basic_deduction_spouse_amount: toNum(get(u, "basicDeductionSpouseAmount")),
+        basic_deduction_dependents_amount: toNum(get(u, "basicDeductionDependentsAmount")),
+        national_pension_deduction_amount: toNum(get(u, "nationalPensionDeductionAmount")),
+        total_special_income_deduction_amount: toNum(get(u, "totalSpecialIncomeDeductionTotalAmount")),
+        adjusted_income_amount: toNum(get(u, "adjustedIncomeAmount")),
+        other_income_deduction_total_amount: toNum(get(u, "otherIncomeDeductionTotalAmount")),
+        other_income_deduction_extra: toNum(get(u, "otherIncomeDeductionExtra")),
+        tax_base_amount: toNum(get(u, "taxBaseAmount")),
+        calculated_tax_amount: toNum(get(u, "calculatedTaxAmount")),
+        tax_reduction_total_amount: toNum(get(u, "taxReductionTotalAmount")),
+        earned_income_total_amount: toNum(get(u, "earnedIncomeTotalAmount")),
+        eligible_children_count: toNum(get(u, "eligibleChildrenCount")),
+        childbirth_adoption_count: toNum(get(u, "childbirthAdoptionCount")),
+        donation_total_amount: toNum(get(u, "donationTotalAmount")),
+        standard_tax_credit: toNum(get(u, "standardTaxCredit")),
+        monthly_rent_tax_credit_amount: toNum(get(u, "monthlyRentTaxCreditAmount")),
+        total_tax_credit_amount: toNum(get(u, "totalTaxCreditAmount")),
+        determined_tax_amount: toNum(get(u, "determinedTaxAmountOrigin") ?? get(u, "determinedTaxAmount")),
+      };
+    });
+
+  return { OCRData };
 }

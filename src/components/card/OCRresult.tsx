@@ -16,9 +16,15 @@ type OcrSection = {
 export default function OCRresult({
   sections,
   data,
+  editable = false,
+  onChange,
 }: {
   sections: OcrSection[];
   data?: OcrYearData | null;
+
+  // 추가
+  editable?: boolean;
+  onChange?: (path: string, value: string) => void;
 }) {
   return (
     <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
@@ -30,10 +36,12 @@ export default function OCRresult({
 
               <div className="pl-5 space-y-3">
                 {sec.rows.map((row) => (
-                  <OcrFixedRow
+                  <OcrRowItem
                     key={`${sec.title}-${row.label}`}
                     row={row}
                     data={data}
+                    editable={editable}
+                    onChange={onChange}
                   />
                 ))}
               </div>
@@ -49,17 +57,24 @@ export default function OCRresult({
   );
 }
 
-function OcrFixedRow({
+function OcrRowItem({
   row,
   data,
+  editable,
+  onChange,
 }: {
   row: OcrRow;
   data?: OcrYearData | null;
+  editable: boolean;
+  onChange?: (path: string, value: string) => void;
 }) {
   const raw =
     row.field && data
       ? getValueByPath(data as unknown as Record<string, any>, row.field)
       : null;
+
+  // input value는 "표시값(콤마)" 말고 "원 값(콤마 없는)"으로 유지
+  const inputValue = raw === null || raw === undefined ? "" : String(raw);
 
   return (
     <div className="grid grid-cols-[1fr_220px] items-center gap-3">
@@ -75,9 +90,20 @@ function OcrFixedRow({
         ) : null}
 
         <div className="h-[36px] w-[180px] rounded-[6px] border border-gray-200 bg-white px-3 flex items-center justify-end">
-          <span className="text-[13px] text-gray-700 tabular-nums">
-            {formatValue(raw)}
-          </span>
+          {/* editable이면 input */}
+          {editable && row.field ? (
+            <input
+              className="w-full text-right text-[13px] text-gray-700 tabular-nums outline-none"
+              value={inputValue}
+              placeholder="-"
+              inputMode="numeric"
+              onChange={(e) => onChange?.(row.field!, e.target.value)}
+            />
+          ) : (
+            <span className="text-[13px] text-gray-700 tabular-nums">
+              {formatValue(raw)}
+            </span>
+          )}
         </div>
       </div>
     </div>

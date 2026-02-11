@@ -119,7 +119,7 @@ function stableStringify(obj: any) {
   return JSON.stringify(sorted);
 }
 
-// ✅ 수정 불가 필드(name, rrn)만 원상복구 (나머지 수정값은 유지)
+// 수정 불가 필드(name, rrn)만 원상복구 (나머지 수정값은 유지)
 function restoreLockedFields(prev: CustomerForm, original: CustomerForm): CustomerForm {
   return {
     ...prev,
@@ -239,7 +239,7 @@ export default function ConfirmCustomerPage() {
     return stableStringify(a) !== stableStringify(b);
   }, [originalForm, form]);
 
-  // ✅ 수정 불가 필드 변경 체크: 이름(name), 주민등록번호(rrn)만
+  // 수정 불가 필드 변경 체크: 이름(name), 주민등록번호(rrn)만
   const lockedFieldsChanged = useMemo(() => {
     if (!originalForm) return false;
 
@@ -261,7 +261,7 @@ export default function ConfirmCustomerPage() {
       return;
     }
 
-    // ✅ 이름/주민번호 변경 시: PATCH 막고 모달 오픈
+    // 이름/주민번호 변경 시: PATCH 막고 모달 오픈
     if (lockedFieldsChanged) {
       setIsPatchAccessModalOpen(true);
       return;
@@ -288,7 +288,7 @@ export default function ConfirmCustomerPage() {
     }
   };
 
-  // ✅ “닫히면 무조건 원상복구” (이름/주민번호만)
+  // “닫히면 무조건 원상복구” (이름/주민번호만)
   const handleCloseAccessModal = () => {
     setIsPatchAccessModalOpen(false);
 
@@ -313,7 +313,7 @@ export default function ConfirmCustomerPage() {
         onClose={() => setIsPatchModalOpen(false)}
       />
 
-      {/* ✅ 닫힐 때마다 이름/주민번호 원상복구 */}
+      {/* 닫힐 때마다 이름/주민번호 원상복구 */}
       <PatchAccessModal
         open={isPatchAccessModalOpen}
         onClose={handleCloseAccessModal}

@@ -16,7 +16,7 @@ import {
 } from "../../lib/api/result";
 
 type Props = {
-  year?: number; // ✅ 이제 사실상 안 씀(호환용)
+  year?: number; // 이제 사실상 안 씀(호환용)
 };
 
 type NavState = {
@@ -90,7 +90,14 @@ export default function CalculationCompare({ year }: Props) {
   const location = useLocation();
   const { caseId: caseIdParam } = useParams<{ caseId: string }>();
 
-  // ✅ OCR에서 넘어온 year(state) + 새로고침 대비 sessionStorage fallback
+  // URL param -> number caseId (한 번만 계산해서 재사용)
+  const caseId = useMemo(() => {
+    if (!caseIdParam) return null;
+    const n = Number(caseIdParam);
+    return Number.isFinite(n) ? n : null;
+  }, [caseIdParam]);
+
+  // OCR에서 넘어온 year(state) + 새로고침 대비 sessionStorage fallback
   const navState = (location.state as NavState | null) ?? null;
 
   const yearFromNav = useMemo(() => {
@@ -104,9 +111,10 @@ export default function CalculationCompare({ year }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // ✅ POST 진행 중 상태
+  // POST 진행 중 상태
   const [submitting, setSubmitting] = useState(false);
 
+  // 계산 결과 조회: GET /api/result/{caseId}
   useEffect(() => {
     if (!caseIdParam) {
       setErrorMsg("caseId가 없습니다. URL을 확인해 주세요. (/compare/:caseId)");
@@ -114,8 +122,7 @@ export default function CalculationCompare({ year }: Props) {
       return;
     }
 
-    const numericCaseId = Number(caseIdParam);
-    if (!Number.isFinite(numericCaseId)) {
+    if (caseId === null) {
       setErrorMsg("caseId가 숫자가 아닙니다. 라우팅/파라미터를 확인해 주세요.");
       setRefundResults([]);
       return;
@@ -126,9 +133,9 @@ export default function CalculationCompare({ year }: Props) {
         setLoading(true);
         setErrorMsg(null);
 
-        const data = await getCalculationResult(numericCaseId);
+        const data = await getCalculationResult(caseId);
 
-        // ✅ isSuccess 체크 (중요)
+        // isSuccess 체크
         if (!data?.isSuccess) {
           setErrorMsg(data?.message ?? "계산 결과 조회에 실패했습니다.");
           setRefundResults([]);
@@ -137,7 +144,7 @@ export default function CalculationCompare({ year }: Props) {
 
         const list = data.result?.refund_results ?? [];
 
-        // ✅ 결과가 비어있을 때 UX
+        // 결과가 비어있을 때 UX
         if (!Array.isArray(list) || list.length === 0) {
           setErrorMsg("표시할 계산 결과가 없습니다.");
           setRefundResults([]);
@@ -155,7 +162,7 @@ export default function CalculationCompare({ year }: Props) {
         setLoading(false);
       }
     })();
-  }, [caseIdParam]);
+  }, [caseIdParam, caseId]);
 
   const years = useMemo(() => {
     return [...refundResults]
@@ -164,7 +171,7 @@ export default function CalculationCompare({ year }: Props) {
       .sort((a, b) => a - b);
   }, [refundResults]);
 
-  // ✅ plansByYear
+  // plansByYear
   const plansByYear = useMemo(() => {
     const map = new Map<number, RefundPlan[]>();
 
@@ -176,7 +183,7 @@ export default function CalculationCompare({ year }: Props) {
     return map;
   }, [refundResults]);
 
-  // ✅ 연도별 bestPlanId 계산
+  // 연도별 bestPlanId 계산
   const bestPlanIdByYear = useMemo(() => {
     const m = new Map<number, string | null>();
 
@@ -210,7 +217,7 @@ export default function CalculationCompare({ year }: Props) {
     setActiveYear(safe);
   }, [years, year, yearFromNav, activeYear]);
 
-  // ✅ activeYear 저장(새로고침 대비)
+  // activeYear 저장(새로고침 대비)
   useEffect(() => {
     if (activeYear === null) return;
     sessionStorage.setItem("activeYear", String(activeYear));
@@ -231,13 +238,13 @@ export default function CalculationCompare({ year }: Props) {
     [plans.length]
   );
 
-  // ✅ 현재 연도의 best(배지용)
+  // 현재 연도의 best(배지용)
   const bestPlanId = useMemo(() => {
     if (activeYear === null) return null;
     return bestPlanIdByYear.get(activeYear) ?? null;
   }, [activeYear, bestPlanIdByYear]);
 
-  // ✅ years 생기면: 각 연도별 best를 기본 선택으로 채움
+  // years 생기면: 각 연도별 best를 기본 선택으로 채움
   useEffect(() => {
     if (!years.length) return;
 
@@ -289,7 +296,7 @@ export default function CalculationCompare({ year }: Props) {
     setPickedPlanIdByYear((prev) => ({ ...prev, [activeYear]: planId }));
   };
 
-  // ✅ POST body 만들기
+  // POST body 만들기
   const submitPayload = useMemo<SubmitResultRequest>(() => {
     return {
       scenarios: years
@@ -305,13 +312,11 @@ export default function CalculationCompare({ year }: Props) {
   const [isOutcomeOpen, setIsOutcomeOpen] = useState(false);
   const [outcomeStep, setOutcomeStep] = useState<RefundOutcomeStep>("review");
 
-  // ✅ 선택 완료: POST /api/result/{caseId}
+  // 선택 완료: POST /api/result/{caseId}
   const onSubmit = async () => {
     if (!isAllYearsPicked) return;
-    if (!caseIdParam) return;
 
-    const numericCaseId = Number(caseIdParam);
-    if (!Number.isFinite(numericCaseId)) {
+    if (caseId === null) {
       alert("caseId가 올바르지 않습니다.");
       return;
     }
@@ -325,15 +330,12 @@ export default function CalculationCompare({ year }: Props) {
     try {
       setSubmitting(true);
 
-      const res = await postCalculationResult(numericCaseId, submitPayload);
+      const res = await postCalculationResult(caseId, submitPayload);
 
       if (!res.isSuccess) {
         alert(res.message ?? "계산 결과 저장에 실패했습니다.");
         return;
       }
-
-      // (선택) 서버가 내려준 case_id 사용 가능
-      // const savedCaseId = res.result.case_id;
 
       setOutcomeStep("review");
       setIsOutcomeOpen(true);
@@ -474,6 +476,7 @@ export default function CalculationCompare({ year }: Props) {
           isOpen={isOutcomeOpen}
           step={outcomeStep}
           onClose={() => setIsOutcomeOpen(false)}
+          caseId={caseId}
           refundAmount={totalRefund}
           pdfFile={null}
           onConfirm={() => setOutcomeStep("completed")}

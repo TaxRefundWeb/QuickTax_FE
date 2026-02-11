@@ -1,3 +1,4 @@
+// src/pages/Step3/CalculationCompare.tsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -7,12 +8,10 @@ import RefundOutcomeModal, {
 } from "../../components/modal/RefundOutcomeModal";
 
 import type { RefundPlan } from "../../data/customersDummy";
-import {
-  getCalculationResult,
-  postCalculationResult,
-  type RefundResultByYear,
-  type Scenario,
-  type SubmitResultRequest,
+import type {
+  RefundResultByYear,
+  Scenario,
+  SubmitResultRequest,
 } from "../../lib/api/result";
 
 type Props = {
@@ -61,6 +60,80 @@ function YearTabs({
     </div>
   );
 }
+
+// ✅ 더미 계산 결과 (API 연결 전 임시)
+const MOCK_REFUND_RESULTS: RefundResultByYear[] = [
+  {
+    case_year: 2022,
+    scenarios: [
+      {
+        scenario_code: "S2022_A",
+        tax_difference_amount: 120000,
+        determined_tax_amount: 1800000,
+        tax_base_amount: 24000000,
+        calculated_tax: 1950000,
+        earned_income_amount: 32000000,
+        refund_amount: 340000,
+        scenario_text: "기본 공제 + 일부 추가 공제 적용",
+      },
+      {
+        scenario_code: "S2022_B",
+        tax_difference_amount: 220000,
+        determined_tax_amount: 1800000,
+        tax_base_amount: 24000000,
+        calculated_tax: 1850000,
+        earned_income_amount: 32000000,
+        refund_amount: 520000,
+        scenario_text: "인적공제 확대 + 세액공제 최적화",
+      },
+      {
+        scenario_code: "S2022_C",
+        tax_difference_amount: 90000,
+        determined_tax_amount: 1800000,
+        tax_base_amount: 24000000,
+        calculated_tax: 2000000,
+        earned_income_amount: 32000000,
+        refund_amount: 260000,
+        scenario_text: "보수적(최소) 적용",
+      },
+    ],
+  },
+  {
+    case_year: 2023,
+    scenarios: [
+      {
+        scenario_code: "S2023_A",
+        tax_difference_amount: 150000,
+        determined_tax_amount: 2100000,
+        tax_base_amount: 26000000,
+        calculated_tax: 2250000,
+        earned_income_amount: 35000000,
+        refund_amount: 410000,
+        scenario_text: "표준 공제 + 세액공제 일부 반영",
+      },
+      {
+        scenario_code: "S2023_B",
+        tax_difference_amount: 260000,
+        determined_tax_amount: 2100000,
+        tax_base_amount: 26000000,
+        calculated_tax: 2100000,
+        earned_income_amount: 35000000,
+        refund_amount: 680000,
+        scenario_text: "공제 최적화(환급 최대)",
+      },
+      {
+        scenario_code: "S2023_C",
+        tax_difference_amount: 100000,
+        determined_tax_amount: 2100000,
+        tax_base_amount: 26000000,
+        calculated_tax: 2300000,
+        earned_income_amount: 35000000,
+        refund_amount: 300000,
+        scenario_text: "보수적 계산",
+      },
+    ],
+  },
+];
 
 // API Scenario -> RefundPlan 변환
 function scenarioToPlan(s: Scenario, idx: number): RefundPlan {
@@ -111,10 +184,10 @@ export default function CalculationCompare({ year }: Props) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // POST 진행 중 상태
+  // POST 진행 중 상태(더미)
   const [submitting, setSubmitting] = useState(false);
 
-  // 계산 결과 조회: GET /api/result/{caseId}
+  // ✅ 더미로 대체: 계산 결과 조회(임시)
   useEffect(() => {
     if (!caseIdParam) {
       setErrorMsg("caseId가 없습니다. URL을 확인해 주세요. (/compare/:caseId)");
@@ -128,23 +201,20 @@ export default function CalculationCompare({ year }: Props) {
       return;
     }
 
+    let alive = true;
+
     (async () => {
       try {
         setLoading(true);
         setErrorMsg(null);
 
-        const data = await getCalculationResult(caseId);
+        // ✅ API 대신 약간의 딜레이 후 더미 주입 (로딩 UI 확인 가능)
+        await new Promise((r) => setTimeout(r, 350));
 
-        // isSuccess 체크
-        if (!data?.isSuccess) {
-          setErrorMsg(data?.message ?? "계산 결과 조회에 실패했습니다.");
-          setRefundResults([]);
-          return;
-        }
+        if (!alive) return;
 
-        const list = data.result?.refund_results ?? [];
+        const list = MOCK_REFUND_RESULTS;
 
-        // 결과가 비어있을 때 UX
         if (!Array.isArray(list) || list.length === 0) {
           setErrorMsg("표시할 계산 결과가 없습니다.");
           setRefundResults([]);
@@ -154,14 +224,16 @@ export default function CalculationCompare({ year }: Props) {
         setRefundResults(list);
       } catch (e) {
         console.error(e);
-        setErrorMsg(
-          "계산 결과를 불러오지 못했습니다. 콘솔/네트워크를 확인해 주십시오."
-        );
+        setErrorMsg("더미 계산 결과를 불러오지 못했습니다.");
         setRefundResults([]);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [caseIdParam, caseId]);
 
   const years = useMemo(() => {
@@ -296,7 +368,7 @@ export default function CalculationCompare({ year }: Props) {
     setPickedPlanIdByYear((prev) => ({ ...prev, [activeYear]: planId }));
   };
 
-  // POST body 만들기
+  // POST body 만들기 (더미에서도 payload는 유지)
   const submitPayload = useMemo<SubmitResultRequest>(() => {
     return {
       scenarios: years
@@ -312,7 +384,7 @@ export default function CalculationCompare({ year }: Props) {
   const [isOutcomeOpen, setIsOutcomeOpen] = useState(false);
   const [outcomeStep, setOutcomeStep] = useState<RefundOutcomeStep>("review");
 
-  // 선택 완료: POST /api/result/{caseId}
+  // ✅ 선택 완료: API 대신 모달만 띄우기(임시)
   const onSubmit = async () => {
     if (!isAllYearsPicked) return;
 
@@ -321,7 +393,6 @@ export default function CalculationCompare({ year }: Props) {
       return;
     }
 
-    // 방어: 혹시 scenarios가 비어있으면 중단
     if (!submitPayload.scenarios.length) {
       alert("선택된 플랜이 없습니다.");
       return;
@@ -330,18 +401,16 @@ export default function CalculationCompare({ year }: Props) {
     try {
       setSubmitting(true);
 
-      const res = await postCalculationResult(caseId, submitPayload);
+      // ✅ 여기서 payload만 확인 (추후 postCalculationResult로 교체)
+      console.log("[MOCK SUBMIT]", { caseId, submitPayload });
 
-      if (!res.isSuccess) {
-        alert(res.message ?? "계산 결과 저장에 실패했습니다.");
-        return;
-      }
+      await new Promise((r) => setTimeout(r, 350));
 
       setOutcomeStep("review");
       setIsOutcomeOpen(true);
     } catch (e) {
       console.error(e);
-      alert("계산 결과 저장 중 오류가 발생했습니다. 콘솔을 확인해 주세요.");
+      alert("저장(더미) 중 오류가 발생했습니다. 콘솔을 확인해 주세요.");
     } finally {
       setSubmitting(false);
     }
@@ -379,7 +448,7 @@ export default function CalculationCompare({ year }: Props) {
               <div className="py-16 text-center">
                 <div className="text-red-500 text-sm font-medium">{errorMsg}</div>
                 <div className="mt-2 text-gray-400 text-xs">
-                  caseId / API baseURL / CORS / 로그인 여부를 확인해주십시오.
+                  caseId / 라우팅을 확인해주십시오.
                 </div>
               </div>
             )}

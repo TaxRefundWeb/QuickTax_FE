@@ -10,7 +10,6 @@
   display: flex;
   justify-content: center;
   align-items: center; /* 세로 가운데 */
-  
 }
 /* 실제 콘텐츠 */
 .container {

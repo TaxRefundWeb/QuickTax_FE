@@ -27,11 +27,15 @@ export default function OcrComparePanel(props: {
 
   const [isPatchModalOpen, setIsPatchModalOpen] = useState(false);
 
+  const isReady = ocrStatus === "READY" || ocrStatus === "DONE";
+
   const handleSubmitOcr = async () => {
+    if (!isReady) return;
+
     const result = await submitPatchAllYears();
 
     if (!result.ok) {
-      if (result.reason === "not_dirty") return; // 버튼이 입력완료면 아무 것도 안 함(기존 동작 유지)
+      if (result.reason === "not_dirty") return;
       if (result.reason === "failed") {
         alert(result.message || "OCR 수정 저장에 실패했어요.");
         return;
@@ -45,6 +49,10 @@ export default function OcrComparePanel(props: {
   };
 
   const data = currentDraft as OcrYearData | null;
+
+  const showProcessing = isOcrLoading || ocrStatus === "PROCESSING";
+  const showWaiting = ocrStatus === "WAITING_UPLOAD" || ocrStatus === null;
+  const showFailed = ocrStatus === "FAILED" || Boolean(ocrError);
 
   return (
     <div className="h-full bg-white flex flex-col items-center">
@@ -60,7 +68,7 @@ export default function OcrComparePanel(props: {
         </div>
       </div>
 
-      {isOcrLoading || ocrStatus === "PROCESSING" ? (
+      {showProcessing ? (
         <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
           <div className="h-full flex items-center justify-center bg-[#F3F8FF] px-6 py-5">
             <div className="text-center flex flex-col items-center">
@@ -70,7 +78,7 @@ export default function OcrComparePanel(props: {
             </div>
           </div>
         </div>
-      ) : ocrStatus === "WAITING_UPLOAD" ? (
+      ) : showWaiting ? (
         <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
           <div className="h-full flex items-center justify-center bg-[#F3F8FF] px-6 py-5">
             <div className="text-center">
@@ -81,7 +89,7 @@ export default function OcrComparePanel(props: {
             </div>
           </div>
         </div>
-      ) : ocrStatus === "FAILED" || ocrError ? (
+      ) : showFailed ? (
         <div className="flex-1 w-[600px] mx-auto max-h-[600px] rounded-[8px] overflow-hidden">
           <div className="h-full flex items-center justify-center bg-[#F3F8FF] px-6 py-5">
             <div className="text-center">
@@ -95,12 +103,7 @@ export default function OcrComparePanel(props: {
           </div>
         </div>
       ) : (
-        <OCRresult
-          sections={sections}
-          data={data}
-          editable
-          onChange={handleChangeOcrField}
-        />
+        <OCRresult sections={sections} data={data} editable onChange={handleChangeOcrField} />
       )}
 
       {/* 하단 버튼 */}
@@ -108,22 +111,28 @@ export default function OcrComparePanel(props: {
         <div className="flex gap-3">
           <button
             type="button"
-            disabled={isPatchLoading}
+            disabled={isPatchLoading || !isReady}
             onClick={handleSubmitOcr}
             className={[
               "h-[40px] w-[120px] rounded-[6px] border border-gray-200 bg-white text-[13px] text-gray-700 hover:bg-gray-50",
-              isPatchLoading && "opacity-50 cursor-not-allowed hover:bg-white",
+              (isPatchLoading || !isReady) && "opacity-50 cursor-not-allowed hover:bg-white",
             ].join(" ")}
+            title={!isReady ? "OCR이 READY가 된 뒤 수정/저장이 가능해요." : undefined}
           >
             {isPatchLoading ? "저장 중…" : submitButtonLabel}
           </button>
 
           <button
             type="button"
+            disabled={!isReady}
             onClick={onGoToStep3}
-            className="h-[40px] w-[120px] rounded-[6px] bg-[#64A5FF] text-[13px] font-medium text-white hover:bg-[#4F93FF]"
+            className={[
+              "h-[40px] w-[120px] rounded-[6px] bg-[#64A5FF] text-[13px] font-medium text-white hover:bg-[#4F93FF]",
+              !isReady && "opacity-50 cursor-not-allowed hover:bg-[#64A5FF]",
+            ].join(" ")}
+            title={!isReady ? "OCR이 READY가 된 뒤 계산할 수 있어요." : undefined}
           >
-            계산하기
+            {isReady ? "계산하기" : "OCR 처리중"}
           </button>
         </div>
       </div>

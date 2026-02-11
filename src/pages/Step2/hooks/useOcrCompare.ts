@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCaseOcr,
@@ -20,9 +21,7 @@ export function useOcrCompare(params: {
   const [ocrByYear, setOcrByYear] = useState<Record<string, OcrYearData>>({});
 
   // draft/snapshot/patch
-  const [draftByYear, setDraftByYear] = useState<Record<string, OcrYearData>>(
-    {}
-  );
+  const [draftByYear, setDraftByYear] = useState<Record<string, OcrYearData>>({});
   const snapshotRef = useRef<Record<string, OcrYearData>>({});
   const [isPatchLoading, setIsPatchLoading] = useState(false);
 
@@ -75,6 +74,17 @@ export function useOcrCompare(params: {
         if (changed) snapshotRef.current = snap;
       }
     } catch (e) {
+      // ✅ 여기 핵심: 처음엔 ocr_job이 없어서 404가 정상일 수 있음
+      if (axios.isAxiosError(e)) {
+        const status = e.response?.status;
+        if (status === 404) {
+          setOcrStatus("WAITING_UPLOAD");
+          setOcrError(null);
+          setOcrByYear({});
+          return;
+        }
+      }
+
       console.error(e);
       setOcrError("OCR 결과를 불러오지 못했어요.");
       setOcrByYear({});
@@ -176,28 +186,24 @@ export function useOcrCompare(params: {
   };
 
   return {
-    // 상태
     isOcrLoading,
     ocrStatus,
     ocrError,
-
-    // 데이터
     currentDraft,
 
-    // 입력/저장
     handleChangeOcrField,
     isAnyDirty,
     submitButtonLabel,
     isPatchLoading,
     submitPatchAllYears,
 
-    // 필요하면 외부에서 강제 리프레시
+    // 혹시 외부에서 강제 호출하고 싶으면 이거 쓰면 됨(근데 지금은 폴링이라 거의 필요 없음)
     refetch: fetchOcr,
   };
 }
 
 /* =========================
-   아래는 기존 유틸들 (hook로 이동)
+   utils
 ========================= */
 
 function safeClone<T>(v: T): T {

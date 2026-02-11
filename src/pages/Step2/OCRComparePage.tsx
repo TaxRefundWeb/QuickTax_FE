@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 
 import type { OcrSection } from "../../components/card/OCRresult";
 import OcrComparePanel from "./components/OcrComparePanel";
+import { useOcrUpload } from "./hooks/useOcrUpload";
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -184,6 +185,15 @@ export default function OcrComparePage() {
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
+  // ✅ 업로드 훅
+  const {
+  phase: uploadPhase,
+  error: uploadError,
+  isBusy: isUploadBusy,
+  startUpload,
+  resetUpload,
+} = useOcrUpload(caseId);
+
   const handlePickFile = (picked: File) => {
     const isPdf =
       picked.name.toLowerCase().endsWith(".pdf") || picked.type === "application/pdf";
@@ -191,6 +201,9 @@ export default function OcrComparePage() {
       alert("PDF 파일만 업로드할 수 있어요!");
       return;
     }
+
+    // 업로드 상태 초기화
+    resetUpload();
 
     setPdfError(null);
     setIsPdfLoading(true);
@@ -200,6 +213,9 @@ export default function OcrComparePage() {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(picked);
     });
+
+    resetUpload();
+    void startUpload(picked);
   };
 
   useEffect(() => {
@@ -241,15 +257,27 @@ export default function OcrComparePage() {
     void _formsByYear;
   }, [activeYear, _formsByYear]);
 
+  const uploadHint = (() => {
+    if (!file) return null;
+
+    if (uploadPhase === "idle") return "파일을 선택하면 OCR 업로드/처리가 자동 시작돼요.";
+    if (uploadPhase === "presigning") return "업로드 URL 생성 중…";
+    if (uploadPhase === "uploading") return "S3 업로드 중…";
+    if (uploadPhase === "completing") return "서버에 처리 시작 요청 중…";
+    if (uploadPhase === "done") return "업로드 완료. OCR 처리 진행 중(오른쪽에서 상태 확인).";
+    if (uploadPhase === "error") return uploadError || "업로드 중 오류";
+    return null;
+  })();
+
   return (
     <div className="w-full flex justify-center">
       <div className="w-[1400px]">
         {/* 상단 */}
         <div>
-          <div className="grid grid-cols-[260px_1fr] gap-6">
+          <div className="grid grid-cols-[460px_1fr] gap-6">
             {/* 현재 파일 */}
             <div className="rounded-[12px] border border-gray-200 bg-white p-4">
-              <p className="mb-3 text-[12px] font-medium text-gray-700">
+              <p className="mb-3 text-[14px] font-board text-gray-700">
                 현재 보고있는 파일
               </p>
 
@@ -272,6 +300,7 @@ export default function OcrComparePage() {
                   isDragging
                     ? "border-[#64A5FF] bg-[#F3F8FF]"
                     : "border-gray-200 bg-[#FAFAFA] hover:bg-gray-50",
+                  isUploadBusy ? "opacity-80" : "",
                 ].join(" ")}
                 onDragEnter={(e) => {
                   e.preventDefault();
@@ -318,13 +347,37 @@ export default function OcrComparePage() {
                     </>
                   )}
                 </button>
+
+                {uploadHint && (
+                  <div
+                    className={[
+                      "mt-2 text-[12px]",
+                      uploadPhase === "error" ? "text-red-500" : "text-gray-500",
+                    ].join(" ")}
+                  >
+                    {uploadHint}
+                  </div>
+                )}
+
+                {uploadPhase === "error" && file && (
+                  <button
+                    type="button"
+                    onClick={() => void startUpload(file)}
+                    className="mt-2 inline-flex h-8 items-center justify-center rounded-[6px] border border-gray-200 bg-white px-3 text-[12px] text-gray-700 hover:bg-gray-50"
+                  >
+                    업로드 재시도
+                  </button>
+                )}
               </div>
             </div>
 
             {/* 연도 탭 */}
-            <div className="rounded-[8px] border border-gray-200 bg-white p-4">
-              <p className="mb-3 text-[12px] text-gray-700">년도별 인식 결과</p>
-              <YearTabs years={openYears} activeKey={activeYear} onChange={setActiveYear} />
+            <div className="rounded-[8px] border border-gray-200 bg-white p-4 flex flex-col">
+              <p className="mb-3 text-[14px] text-gray-700">년도별 인식 결과</p>
+
+              <div className="mx-5 flex-1 flex items-center">
+                <YearTabs years={openYears} activeKey={activeYear} onChange={setActiveYear} />
+              </div>
             </div>
           </div>
         </div>
@@ -501,7 +554,7 @@ export default function OcrComparePage() {
               </div>
             </div>
 
-            {/* 우측 OCR 결과 (분리된 패널) */}
+            {/* 우측 OCR 결과 */}
             <OcrComparePanel
               caseId={caseId}
               openYears={openYears}
@@ -526,29 +579,27 @@ function YearTabs({
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="w-full">
-      <div className="flex items-center gap-3 overflow-x-auto pb-1">
-        {years.map((y) => {
-          const key = String(y);
-          const active = key === activeKey;
+    <div className="flex flex-wrap gap-2">
+      {years.map((y) => {
+        const key = String(y);
+        const active = key === activeKey;
 
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onChange(key)}
-              className={[
-                "h-[48px] w-[134px] flex items-center justify-center rounded-[10px] border text-[14px] transition-colors whitespace-nowrap",
-                active
-                  ? "border-[#64A5FF] bg-[#64A5FF] text-white"
-                  : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-              ].join(" ")}
-            >
-              {`${String(y).slice(2)}년`}
-            </button>
-          );
-        })}
-      </div>
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            className={[
+              "h-10 rounded-full border px-8 text-[18px] transition",
+              active
+                ? "border-[#64A5FF] bg-[#F3F8FF] text-[#2B6BFF]"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+            ].join(" ")}
+          >
+            {key}년
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1,6 +1,10 @@
 import { api } from "./client";
 
-export type OcrStatus = "WAITING_UPLOAD" | "PROCESSING" | "DONE" | "FAILED";
+export type OcrStatus = "WAITING_UPLOAD" | "PROCESSING" | "READY" | "FAILED" | "DONE";
+
+/* =========================
+   Types
+========================= */
 
 export type OcrCompany = {
   companyId: number;
@@ -31,7 +35,7 @@ export type OcrYearData = {
 
   taxReductionTotalAmount: number;
 
-  earnedIncomeTotalAmount: number; // (Swagger 이름이 애매하지만 일단 그대로 사용)
+  earnedIncomeTotalAmount: number;
 
   eligibleChildrenCount: number;
   childbirthAdoptionCount: number;
@@ -63,6 +67,50 @@ export async function getCaseOcr(caseId: number) {
   const { data } = await api.get<GetCaseOcrResponse>(`/cases/${caseId}/ocr`);
   return data;
 }
+
+/* =========================
+   Presign / Complete
+========================= */
+
+export type OcrPresignResponse = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result: {
+    uploadUrl: string;
+    s3Key: string;
+    expiresIn: number;
+  };
+};
+
+export async function postOcrPresign(caseId: number) {
+  const { data } = await api.post<OcrPresignResponse>(`/cases/${caseId}/ocr/presign`);
+  return data;
+}
+
+export type OcrUploadCompleteResponse = {
+  isSuccess: boolean;
+  code: string;
+  message: string;
+  result: {
+    s3Key: string;
+    contentLength: number | null;
+    eTag: string | null;
+    serverSideEncryption: string | null;
+    status: OcrStatus;
+    errorCode: string | null;
+    errorMessage: string | null;
+  };
+};
+
+export async function postOcrComplete(caseId: number) {
+  const { data } = await api.post<OcrUploadCompleteResponse>(`/cases/${caseId}/ocr/complete`);
+  return data;
+}
+
+/* =========================
+   PATCH OCR (기존)
+========================= */
 
 export type PatchCaseOcrRequest = {
   OCRData: Array<{
